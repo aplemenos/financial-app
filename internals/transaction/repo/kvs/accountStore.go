@@ -21,6 +21,7 @@ type AccountStore struct {
 func NewAccountStore() *AccountStore {
 	asInstance.Do(func() { // <-- atomic, does not allow repeating
 		accountStore = new(AccountStore) // <-- thread safe
+		accountStore.accounts = make(map[string]models.Account)
 	})
 
 	return accountStore
@@ -45,6 +46,17 @@ func (as *AccountStore) Get(key string) (*models.Account, error) {
 	}
 
 	return &account, nil
+}
+
+func (as *AccountStore) GetAll() []models.Account {
+	as.lock.RLock()
+	defer as.lock.RUnlock()
+
+	accounts := []models.Account{}
+	for _, account := range as.accounts {
+		accounts = append(accounts, account)
+	}
+	return accounts
 }
 
 // Delete deletes an account pair from the account store

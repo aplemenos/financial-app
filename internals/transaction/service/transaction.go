@@ -5,6 +5,8 @@ import (
 	"financial-app/internals/transaction/repo/kvs"
 	"financial-app/pkg/models"
 	"log"
+
+	"github.com/google/uuid"
 )
 
 type Transaction struct {
@@ -19,23 +21,21 @@ func NewTransaction(accountStore *kvs.AccountStore) *Transaction {
 	}
 }
 
-func (t *Transaction) CreateTransanction(transaction models.Transaction) error {
+func (t *Transaction) CreateTransanction(transaction models.Transaction) (string, error) {
 	log.Println("Validate the transaction")
 	// Validate the transaction
 	err := t.validateTransaction(transaction)
 	if err != nil {
-		return err
+		return "", err
 	}
 	log.Println("Transaction validation passed")
 
 	log.Println("Process the transaction")
 	// Process the transaction
-	err = t.processTransaction(transaction)
-	if err != nil {
-		return err
-	}
+	transactionID := t.processTransaction(transaction)
+	log.Println("Transaction completed")
 
-	return nil
+	return transactionID, nil
 }
 
 // ValidateTransaction performs validation checks based on the acceptance criteria
@@ -74,9 +74,10 @@ func (t *Transaction) validateTransaction(transaction models.Transaction) error 
 
 // ProcessTransaction performs the actual transaction between the accounts
 // Update the account balances accordingly
-func (t *Transaction) processTransaction(transaction models.Transaction) error {
+// Insert a new transaction in store
+func (t *Transaction) processTransaction(transaction models.Transaction) string {
 	sourceAccount, _ := t.Accounts.Get(transaction.SourceAccountID)
-	targetAccount, _ := t.Accounts.Get(transaction.SourceAccountID)
+	targetAccount, _ := t.Accounts.Get(transaction.TargetAccountID)
 
 	// Debit the balance from the source account
 	sourceAccount.Balance -= transaction.Amount
@@ -88,9 +89,11 @@ func (t *Transaction) processTransaction(transaction models.Transaction) error {
 	t.Accounts.Set(transaction.SourceAccountID, *sourceAccount)
 	t.Accounts.Set(transaction.TargetAccountID, *targetAccount)
 	// Set a new entry of the completed transaction in the transaction store
+	uuid := uuid.New() // Generate a new UUIDv4
+	transaction.ID = uuid.String()
 	t.Transactions.Set(transaction.ID, transaction)
 
-	return nil
+	return transaction.ID
 }
 
 func (t *Transaction) GetTransanction(transactionID string) (*models.Transaction, error) {
@@ -102,4 +105,10 @@ func (t *Transaction) GetTransanction(transactionID string) (*models.Transaction
 	}
 
 	return transaction, nil
+}
+
+func (t *Transaction) GetTransactions() []models.Transaction {
+	log.Println("Get all transactions")
+
+	return t.Transactions.GetAll()
 }

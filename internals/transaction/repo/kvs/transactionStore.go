@@ -21,6 +21,7 @@ type TransactionStore struct {
 func NewTransactionStore() *TransactionStore {
 	tsInstance.Do(func() { // <-- atomic, does not allow repeating
 		transactionStore = new(TransactionStore) // <-- thread safe
+		transactionStore.transactions = make(map[string]models.Transaction)
 	})
 
 	return transactionStore
@@ -41,10 +42,21 @@ func (ts *TransactionStore) Get(key string) (*models.Transaction, error) {
 
 	transaction, ok := ts.transactions[key]
 	if !ok {
-		return nil, errors.New("transactions not found")
+		return nil, errors.New("transaction not found")
 	}
 
 	return &transaction, nil
+}
+
+func (ts *TransactionStore) GetAll() []models.Transaction {
+	ts.lock.RLock()
+	defer ts.lock.RUnlock()
+
+	transactions := []models.Transaction{}
+	for _, transaction := range ts.transactions {
+		transactions = append(transactions, transaction)
+	}
+	return transactions
 }
 
 // Delete deletes a transaction pair from the transaction store
