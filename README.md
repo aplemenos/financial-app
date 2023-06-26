@@ -28,7 +28,7 @@ go test -v
 
 # API Endpoints
 ## Perform a transaction
-**Endpoint:** `/transaction`
+**Endpoint:** `/transactions`
 
 **Method:** POST
 
@@ -47,8 +47,17 @@ go test -v
 - Status Code: 400 Bad Request - Validation error or one of the acceptance criteria failed
 - Status Code: 500 Internal Server Error - An error occurred while processing the transaction
 
+## Get all transactions
+**Endpoint:** `/transactions`
+
+**Method:** GET
+
+**Response:**
+
+- Status Code: 200 OK - Returns the transactions
+
 ## Get a transaction by ID
-**Endpoint:** `/transaction/{id}`
+**Endpoint:** `/transactions/{id}`
 
 **Method:** GET
 
@@ -57,6 +66,15 @@ go test -v
 - Status Code: 200 OK - Returns the transaction details
 - Status Code: 400 Bad Request - The parameter id does not exist
 - Status Code: 404 Not Found - Transaction was not found
+
+## Get all accounts
+**Endpoint:** `/accounts`
+
+**Method:** GET
+
+**Response:**
+
+- Status Code: 200 OK - Returns the accounts
 
 # Contributing
 Contributions are welcome! If you have any suggestions, improvements, or bug fixes, please open an issue or submit a pull request.
