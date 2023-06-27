@@ -2,15 +2,18 @@
 A simple microservice which handles financial transactions. The transaction service exposes a RESTful API (Application Programming Interface), allowing users to make financial transactions between two bank accounts and enforcing various acceptance criteria.
 
 # Code Structure
+## api
+The "api" folder contains versioned APIs, e.g. in this simple case `FinancialAppV1` inside `financial.go`. In more complex APIs, it might also be clever to create dedicated folders for each version. Also, it contains few unit tests
+for validating the API endpoints based on the acceptance criteria of the doc.
 ## pkg
-The "pkg" folder will have all the code that could be used in other packages. In our case, we have a subfolder called "models", which will have the domain definitions for the account and transaction data models. That is all the struct and interface definitions, which will describe the data entities.
+The "pkg" folder will have all the code that could be used in other packages. In the current case, there is subfolder called "models", which will have the domain definitions for the account and transaction data models. That is all the struct and interface definitions, which will describe the data entities.
 ## internal
-All the private code, which cannot be imported into other applications, will go into the internal package. Each application will have a separate subfolder within it. There's a subfolder for the `transaction` application. In our case, it has multiple subfolders, which include:
+All the private code, which cannot be imported into other applications, will go into the internal package. Each application will have a separate subfolder within it. There's a subfolder for the `transaction` application. In the current case, it has multiple subfolders, which include:
 - rest: All code implements the REST-based APIs
 - repo: A simple key-value store for the accounts and transactions.
 - service: Any specific business logic required for the application. In our case, we locate the transaction service.
 ## mocks
-To be done
+The `mocks` folder stores two mock account data, a source and a target account.
 
 # Usage
 1. Clone the repository or download the code files.
@@ -21,9 +24,9 @@ To be done
    By default, the microservice runs on http://localhost:8000. You can test the API using tools like cURL or Postman.
 
 # Testing
-To run the tests for the microservice, execute the following command:
+To run the tests for the financial microservice, execute the following command:
 ```
-go test -v
+go test -v ./api
 ```
 
 # API Endpoints
