@@ -18,6 +18,9 @@ services:
     build: .
     container_name: "financial-api"
     environment:
+      RW_TIMEOUT: 15
+      IDLE_TIMEOUT: 15
+      SERVER_TIMEOUT: 15
       DB_USERNAME: "postgres"
       DB_PASSWORD: "postgres"
       DB_DB: "postgres"
@@ -27,8 +30,11 @@ services:
       SSL_MODE: "disable"
     ports:
       - "8080:8080"
-    depends_on:
-      - db
+    healthcheck:
+      test: "curl --fail http://localhost:8080/alive || exit 1"
+      interval: 10s
+      timeout: 5s
+      retries: 3
     networks:
       - fullstack
 

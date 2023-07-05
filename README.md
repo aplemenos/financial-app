@@ -13,8 +13,8 @@ All the private code, which cannot be imported into other applications, will go 
 - database: It communicates with the postgres database for storing the accounts and transactions data.
 ## migrations
 This folder stores the schema files for creating the tables of the postgres DB. It includes also the schema for cleaning the database but in our case, we do not use it yet.
-## test
-It will have all E2E tests
+## tests
+It will have all integration and E2E tests
 ## vendor
 This directory stores all the third-party dependencies locally so that the version doesn’t mismatch late
 

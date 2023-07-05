@@ -2,10 +2,10 @@ package http
 
 import (
 	"context"
-	"encoding/json"
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -40,12 +40,25 @@ func NewHandler(txnService TransactionService) *Handler {
 	// set up the routes
 	h.mapRoutes()
 
+	// Get the timeouts from the enviroment variable
+	rwTimeout, err := strconv.ParseInt(os.Getenv("RW_TIMEOUT"), 10, 0)
+	if err != nil {
+		panic(err)
+	}
+	rwt := time.Duration(rwTimeout) * time.Second
+
+	idleTimeout, err := strconv.ParseInt(os.Getenv("IDLE_TIMEOUT"), 10, 0)
+	if err != nil {
+		panic(err)
+	}
+	idlet := time.Duration(idleTimeout) * time.Second
+
 	h.Server = &http.Server{
 		Addr: "0.0.0.0:8080",
 		// Good practice to set timeouts to avoid Slowloris attacks.
-		WriteTimeout: time.Second * 15,
-		ReadTimeout:  time.Second * 15,
-		IdleTimeout:  time.Second * 60,
+		WriteTimeout: rwt,
+		ReadTimeout:  rwt,
+		IdleTimeout:  idlet,
 		Handler:      h.Router,
 	}
 	// return our wonderful handler
@@ -55,7 +68,6 @@ func NewHandler(txnService TransactionService) *Handler {
 // mapRoutes - sets up all the routes for financial application
 func (h *Handler) mapRoutes() {
 	h.Router.HandleFunc("/alive", h.AliveCheck).Methods("GET")
-	h.Router.HandleFunc("/ready", h.ReadyCheck).Methods("GET")
 	h.Router.HandleFunc("/api/v1/transaction", h.PostTransaction).Methods("POST")
 	h.Router.HandleFunc("/api/v1/transaction/{id}", h.GetTransaction).Methods("GET")
 	h.Router.HandleFunc("/api/v1/transaction/{id}", h.DeleteTransaction).Methods("DELETE")
@@ -67,35 +79,35 @@ func (h *Handler) mapRoutes() {
 
 }
 
-func (h *Handler) AliveCheck(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
-	w.WriteHeader(http.StatusOK)
-	if err := json.NewEncoder(w).Encode(Response{Message: "I am Alive!"}); err != nil {
-		panic(err)
-	}
-}
-
 // Serve - gracefully serves our newly set up handler function
 func (h *Handler) Serve() error {
 	go func() {
 		if err := h.Server.ListenAndServe(); err != nil {
-			log.Println(err)
+			log.Error(err)
 		}
 	}()
+
+	// Create a deadline to wait for
+	serverTimeout, err := strconv.ParseInt(os.Getenv("SERVER_TIMEOUT"), 10, 0)
+	if err != nil {
+		log.Error(err)
+		return err
+	}
+	log.Debug("the server timeout is ", serverTimeout)
 
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
 	<-c
 
-	// Create a deadline to wait for
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	timeout := time.Duration(serverTimeout) * time.Second
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
 	if err := h.Server.Shutdown(ctx); err != nil {
-		log.Println(err)
+		log.Error(err)
 		return err
 	}
 
-	log.Println("shutting down gracefully")
+	log.Info("shutting down gracefully")
 	return nil
 }

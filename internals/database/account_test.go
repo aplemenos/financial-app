@@ -1,91 +1,166 @@
-//go:build integration
-
 package database
 
 import (
 	"context"
+	"database/sql"
 	"financial-app/pkg/models"
 	"testing"
 
+	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/stretchr/testify/assert"
 )
 
-func TestAccountDatabase(t *testing.T) {
-	t.Run("test create account", func(t *testing.T) {
-		db, err := NewDatabase()
-		assert.NoError(t, err)
+func TestGetAccount(t *testing.T) {
+	// Create a new SQL mock
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("failed to create SQL mock: %v", err)
+	}
+	defer db.Close()
 
-		acct, err := db.PostAccount(context.Background(), models.Account{
-			ID:       "8de96b25-4c7a-4073-87da-e7b21c9308e1",
-			Balance:  11.50,
-			Currency: "EUR",
-		})
-		assert.NoError(t, err)
+	// Create a new Database instance with the mock DB connection
+	d := Database{Client: db}
 
-		newAcct, err := db.GetAccount(context.Background(), acct.ID)
-		assert.NoError(t, err)
-		assert.Equal(t, 11.50, newAcct.Balance)
-		assert.Equal(t, "EUR", newAcct.Currency)
+	// Define the expected account and row data
+	expectedID := "1111"
+	expectedBalance := 100.0
+	expectedCurrency := "EUR"
+	expectedCreatedAt := sql.NullTime{Valid: true}
 
-		// Clean account
-		db.DeleteAccount(context.Background(), "8de96b25-4c7a-4073-87da-e7b21c9308e1")
-	})
+	// Add the expected SQL query and result to the mock
+	mock.ExpectQuery("SELECT id, balance, currency, created_at").
+		WithArgs(expectedID).
+		WillReturnRows(sqlmock.NewRows([]string{"id", "balance", "currency", "created_at"}).
+			AddRow(expectedID, expectedBalance, expectedCurrency, expectedCreatedAt))
 
-	t.Run("test delete account", func(t *testing.T) {
-		db, err := NewDatabase()
-		assert.NoError(t, err)
-		acct, err := db.PostAccount(context.Background(), models.Account{
-			ID:       "8de96b25-4c7a-4073-87da-e7b21c9308e1",
-			Balance:  12.15,
-			Currency: "EUR",
-		})
-		assert.NoError(t, err)
+	// Call the method being tested
+	account, err := d.GetAccount(context.Background(), expectedID)
 
-		err = db.DeleteAccount(context.Background(), acct.ID)
-		assert.NoError(t, err)
+	// Assert the expected result
+	assert.NoError(t, err)
+	expectedAccount := models.Account{
+		ID:        expectedID,
+		Balance:   expectedBalance,
+		Currency:  expectedCurrency,
+		CreatedAt: expectedCreatedAt.Time,
+	}
+	assert.Equal(t, expectedAccount, account)
 
-		_, err = db.GetAccount(context.Background(), acct.ID)
-		assert.Error(t, err)
-	})
+	// Assert that all expectations were met
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
 
-	t.Run("test update account", func(t *testing.T) {
-		db, err := NewDatabase()
-		assert.NoError(t, err)
-		acct, err := db.PostAccount(context.Background(), models.Account{
-			ID:       "8de96b25-4c7a-4073-87da-e7b21c9308e1",
-			Balance:  12.50,
-			Currency: "EUR",
-		})
-		assert.NoError(t, err)
+func TestPostAccount(t *testing.T) {
+	// Create a new SQL mock
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("failed to create SQL mock: %v", err)
+	}
+	defer db.Close()
 
-		acct.Balance = 10.15
-		acct, err = db.UpdateAccount(context.Background(), acct.ID, acct)
-		assert.NoError(t, err)
+	// Create a new Database instance with the mock DB connection
+	d := Database{Client: db}
 
-		newAcct, err := db.GetAccount(context.Background(), acct.ID)
-		assert.NoError(t, err)
-		assert.Equal(t, 10.15, newAcct.Balance)
+	// Define the expected account and row data
+	expectedID := "1111"
+	expectedBalance := 100.0
+	expectedCurrency := "EUR"
 
-		// Clean account
-		db.DeleteAccount(context.Background(), "8de96b25-4c7a-4073-87da-e7b21c9308e1")
-	})
+	// Add the expected SQL query and result to the mock
+	mock.ExpectExec("INSERT INTO accounts").
+		WithArgs(expectedID, expectedBalance, expectedCurrency).
+		WillReturnResult(sqlmock.NewResult(1, 1))
 
-	t.Run("test get account", func(t *testing.T) {
-		db, err := NewDatabase()
-		assert.NoError(t, err)
-		acct, err := db.PostAccount(context.Background(), models.Account{
-			ID:       "8de96b25-4c7a-4073-87da-e7b21c9308e1",
-			Balance:  12.50,
-			Currency: "EUR",
-		})
-		assert.NoError(t, err)
+	// Create a new account to be posted
+	account := models.Account{
+		ID:       "1111",
+		Balance:  expectedBalance,
+		Currency: expectedCurrency,
+	}
 
-		newAcct, err := db.GetAccount(context.Background(), acct.ID)
-		assert.NoError(t, err)
-		assert.Equal(t, 12.50, newAcct.Balance)
-		assert.Equal(t, "EUR", newAcct.Currency)
+	// Call the method being tested
+	result, err := d.PostAccount(context.Background(), account)
 
-		// Clean account
-		db.DeleteAccount(context.Background(), "8de96b25-4c7a-4073-87da-e7b21c9308e1")
-	})
+	// Assert the expected result
+	assert.NoError(t, err)
+	expectedResult := models.Account{
+		ID:        expectedID,
+		Balance:   expectedBalance,
+		Currency:  expectedCurrency,
+		CreatedAt: result.CreatedAt,
+	}
+	assert.Equal(t, expectedResult, result)
+
+	// Assert that all expectations were met
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestUpdateAccount(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("Failed to create mock database: %v", err)
+	}
+	defer db.Close()
+
+	// Create a new Database instance with the mock DB connection
+	d := Database{Client: db}
+
+	// Define the expected account and row data
+	expectedID := "1111"
+	expectedBalance := 100.0
+	expectedCurrency := "EUR"
+
+	// Expect the query to be executed and return the mock rows
+	mock.ExpectExec("UPDATE accounts SET").
+		WithArgs(expectedBalance, expectedCurrency, expectedID).
+		WillReturnResult(sqlmock.NewResult(1, 1))
+
+	// Call the UpdateAccount method
+	account := models.Account{
+		ID:       expectedID,
+		Balance:  expectedBalance,
+		Currency: expectedCurrency,
+	}
+	updatedAccount, err := d.UpdateAccount(context.Background(), expectedID, account)
+
+	// Assert that no error occurred
+	assert.NoError(t, err)
+
+	// Assert the updated account values
+	expectedAccount := models.Account{
+		ID:       expectedID,
+		Balance:  expectedBalance,
+		Currency: expectedCurrency,
+	}
+	assert.Equal(t, expectedAccount, updatedAccount)
+
+	// Ensure all expectations were met
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestDeleteAccount(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("Failed to create mock database: %v", err)
+	}
+	defer db.Close()
+
+	// Create a new Database instance with the mock DB connection
+	d := Database{Client: db}
+
+	id := "1111"
+
+	// Expect the query to be executed and return a successful result
+	mock.ExpectExec("DELETE FROM accounts where id = ?").
+		WithArgs(id).
+		WillReturnResult(sqlmock.NewResult(0, 1))
+
+	// Call the DeleteAccount method
+	err = d.DeleteAccount(context.Background(), id)
+
+	// Assert that no error occurred
+	assert.NoError(t, err)
+
+	// Ensure all expectations were met
+	assert.NoError(t, mock.ExpectationsWereMet())
 }

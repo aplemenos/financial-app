@@ -5,7 +5,7 @@ import (
 	"financial-app/pkg/models"
 	"fmt"
 
-	uuid "github.com/satori/go.uuid"
+	log "github.com/sirupsen/logrus"
 )
 
 // TransactionRow - models how our transaction look in the database
@@ -33,6 +33,7 @@ func (d *Database) GetTransaction(
 ) (models.Transaction, error) {
 	// Fetch TransactionRow from the database and then convert to models.Transaction
 	var txnRow TransactionRow
+
 	row := d.Client.QueryRowContext(
 		ctx,
 		`SELECT id, source_account_id, target_account_id, amount, currency 
@@ -58,7 +59,6 @@ func (d *Database) GetTransaction(
 func (d *Database) PostTransaction(
 	ctx context.Context, txn models.Transaction,
 ) (models.Transaction, error) {
-	txn.ID = uuid.NewV4().String()
 	postRow := TransactionRow{
 		ID:              txn.ID,
 		SourceAccountID: txn.SourceAccountID,
@@ -67,19 +67,24 @@ func (d *Database) PostTransaction(
 		Currency:        txn.Currency,
 	}
 
-	rows, err := d.Client.NamedQueryContext(
+	result, err := d.Client.ExecContext(
 		ctx,
 		`INSERT INTO transactions 
 		(id, source_account_id, target_account_id, amount, currency) VALUES
-		(:id, :source_account_id, :target_account_id, :amount, :currency)`,
-		postRow,
+		($1, $2, $3, $4, $5)`,
+		postRow.ID, postRow.SourceAccountID, postRow.TargetAccountID, postRow.Amount,
+		postRow.Currency,
 	)
 	if err != nil {
 		return models.Transaction{}, fmt.Errorf("failed to insert transaction: %w", err)
 	}
-	if err := rows.Close(); err != nil {
-		return models.Transaction{}, fmt.Errorf("failed to close rows: %w", err)
+
+	// Get the number of affected rows
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return models.Transaction{}, fmt.Errorf("failed to get affected rows: %w", err)
 	}
+	log.Info("The total number of affected rows ", rowsAffected)
 
 	return txn, nil
 }

@@ -1,5 +1,7 @@
 FROM golang:1.20 AS builder
 
+RUN apt-get update && apt-get install -y curl
+
 RUN mkdir /app
 ADD . /app
 WORKDIR /app

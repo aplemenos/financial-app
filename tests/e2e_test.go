@@ -1,6 +1,7 @@
 //go:build e2e
+// +build e2e
 
-package test
+package tests
 
 import (
 	"encoding/json"
@@ -314,4 +315,21 @@ func TestPostTransactionZeroAmount(t *testing.T) {
 
 	err = cleanAccount(taID)
 	assert.NoError(t, err)
+}
+
+func TestHealthEndpoint(t *testing.T) {
+	client := &http.Client{}
+
+	req, err := http.NewRequest("GET", BASE_URL+"/alive", nil)
+	assert.NoError(t, err)
+
+	req.Close = true
+	req.Header.Add("Connection", "close")
+
+	resp, err := client.Do(req)
+	assert.NoError(t, err)
+
+	defer resp.Body.Close()
+
+	assert.Equal(t, 200, resp.StatusCode)
 }

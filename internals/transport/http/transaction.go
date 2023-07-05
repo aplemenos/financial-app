@@ -9,6 +9,7 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
+	uuid "github.com/satori/go.uuid"
 
 	log "github.com/sirupsen/logrus"
 
@@ -29,7 +30,8 @@ type TransactionService interface {
 	GetTransaction(ctx context.Context, ID string) (models.Transaction, error)
 	PostTransaction(ctx context.Context, txn models.Transaction) (models.Transaction, error)
 	DeleteTransaction(ctx context.Context, ID string) error
-	ReadyCheck(ctx context.Context) error
+
+	AliveCheck(ctx context.Context) error
 }
 
 // GetAccount - retrieve an account by ID
@@ -66,6 +68,7 @@ type PostAccountRequest struct {
 
 func accountFromPostAccountRequest(p PostAccountRequest) models.Account {
 	return models.Account{
+		ID:       uuid.NewV4().String(), // Generate a new uuid
 		Balance:  p.Balance,
 		Currency: p.Currency,
 	}
@@ -214,6 +217,7 @@ type PostTransactionRequest struct {
 
 func transactionFromPostTransactionRequest(p PostTransactionRequest) models.Transaction {
 	return models.Transaction{
+		ID:              uuid.NewV4().String(), // Generate a new uuid
 		SourceAccountID: p.SourceAccountID,
 		TargetAccountID: p.TargetAccountID,
 		Amount:          p.Amount,
@@ -291,15 +295,15 @@ func (h *Handler) DeleteTransaction(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (h *Handler) ReadyCheck(w http.ResponseWriter, r *http.Request) {
-	if err := h.TransactionService.ReadyCheck(r.Context()); err != nil {
+func (h *Handler) AliveCheck(w http.ResponseWriter, r *http.Request) {
+	if err := h.TransactionService.AliveCheck(r.Context()); err != nil {
 		log.Error(err)
 		http.Error(w, err.Error(), http.StatusServiceUnavailable)
 		return
 	}
 
 	w.WriteHeader(http.StatusOK)
-	if err := json.NewEncoder(w).Encode(Response{Message: "I am Ready!"}); err != nil {
+	if err := json.NewEncoder(w).Encode(Response{Message: "I am Alive!"}); err != nil {
 		log.Error(err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

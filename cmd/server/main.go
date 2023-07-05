@@ -23,7 +23,7 @@ func Run() error {
 	// Only log the debug severity or above
 	log.SetLevel(log.DebugLevel)
 	log.SetFormatter(&log.JSONFormatter{})
-	log.Info("Setting Up Financial APP")
+	log.Info("setting up financial app")
 
 	store, err := database.NewDatabase()
 	if err != nil {

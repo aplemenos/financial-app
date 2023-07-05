@@ -32,6 +32,9 @@ type TransactionStore interface {
 	GetTransaction(context.Context, string) (models.Transaction, error)
 	PostTransaction(context.Context, models.Transaction) (models.Transaction, error)
 	DeleteTransaction(context.Context, string) error
+
+	// ExecuteDBTransaction(func(*sql.Tx) error) error
+
 	Ping(context.Context) error
 }
 
@@ -165,8 +168,8 @@ func (s *Service) DeleteTransaction(ctx context.Context, ID string) error {
 	return nil
 }
 
-// ReadyCheck - a function that tests we are functionally ready to serve requests
-func (s *Service) ReadyCheck(ctx context.Context) error {
-	log.Info("checking store readiness")
+// AliveCheck - a function that tests we are functionally alive to serve requests
+func (s *Service) AliveCheck(ctx context.Context) error {
+	log.Info("checking store aliveness")
 	return s.Store.Ping(ctx)
 }

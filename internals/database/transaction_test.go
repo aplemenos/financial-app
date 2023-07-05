@@ -1,5 +1,3 @@
-//go:build integration
-
 package database
 
 import (
@@ -7,73 +5,128 @@ import (
 	"financial-app/pkg/models"
 	"testing"
 
+	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/stretchr/testify/assert"
 )
 
-func TestTransactionDatabase(t *testing.T) {
-	t.Run("test create transaction", func(t *testing.T) {
-		db, err := NewDatabase()
-		assert.NoError(t, err)
+func TestGetTransaction(t *testing.T) {
+	// Create a new SQL mock
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("failed to create SQL mock: %v", err)
+	}
+	defer db.Close()
 
-		txn, err := db.PostTransaction(context.Background(), models.Transaction{
-			ID:              "e0251039-a04d-447e-81d8-3e86e1e324b9",
-			SourceAccountID: "7f083c6d-44b8-4e29-a0c8-0f7ae8892a91",
-			TargetAccountID: "877a8a63-4791-41af-838e-2336d9e1a6a7",
-			Amount:          11.50,
-			Currency:        "EUR",
-		})
-		assert.NoError(t, err)
+	// Create a new Database instance with the mock DB connection
+	d := Database{Client: db}
 
-		newTxn, err := db.GetTransaction(context.Background(), txn.ID)
-		assert.NoError(t, err)
-		assert.Equal(t, "7f083c6d-44b8-4e29-a0c8-0f7ae8892a91", newTxn.SourceAccountID)
-		assert.Equal(t, "877a8a63-4791-41af-838e-2336d9e1a6a7", newTxn.TargetAccountID)
-		assert.Equal(t, 11.50, newTxn.Amount)
-		assert.Equal(t, "EUR", newTxn.Currency)
+	// Define the expected transaction and row data
+	expectedID := "1111"
+	expectedSourceAccountID := "2222"
+	expectedTargetAccountID := "3333"
+	expectedAmount := 100.50
+	expectedCurrency := "EUR"
 
-		// Clean transaction
-		db.DeleteTransaction(context.Background(), "e0251039-a04d-447e-81d8-3e86e1e324b9")
-	})
+	// Add the expected SQL query and result to the mock
+	mock.ExpectQuery("SELECT id, source_account_id, target_account_id, amount, currency").
+		WithArgs(expectedID).
+		WillReturnRows(sqlmock.NewRows([]string{"id", "source_account_id", "target_account_id",
+			"amount", "currency"}).
+			AddRow(expectedID, expectedSourceAccountID, expectedTargetAccountID, expectedAmount,
+				expectedCurrency))
 
-	t.Run("test delete transaction", func(t *testing.T) {
-		db, err := NewDatabase()
-		assert.NoError(t, err)
-		txn, err := db.PostTransaction(context.Background(), models.Transaction{
-			ID:              "e0251039-a04d-447e-81d8-3e86e1e324b9",
-			SourceAccountID: "7f083c6d-44b8-4e29-a0c8-0f7ae8892a91",
-			TargetAccountID: "877a8a63-4791-41af-838e-2336d9e1a6a7",
-			Amount:          11.50,
-			Currency:        "EUR",
-		})
-		assert.NoError(t, err)
+	// Call the method being tested
+	transaction, err := d.GetTransaction(context.Background(), expectedID)
 
-		err = db.DeleteTransaction(context.Background(), txn.ID)
-		assert.NoError(t, err)
+	// Assert the expected result
+	assert.NoError(t, err)
+	expectedResult := models.Transaction{
+		ID:              expectedID,
+		SourceAccountID: expectedSourceAccountID,
+		TargetAccountID: expectedTargetAccountID,
+		Amount:          expectedAmount,
+		Currency:        expectedCurrency,
+	}
+	assert.Equal(t, expectedResult, transaction)
 
-		_, err = db.GetTransaction(context.Background(), txn.ID)
-		assert.Error(t, err)
-	})
+	// Assert that all expectations were met
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
 
-	t.Run("test get transaction", func(t *testing.T) {
-		db, err := NewDatabase()
-		assert.NoError(t, err)
-		txn, err := db.PostTransaction(context.Background(), models.Transaction{
-			ID:              "e0251039-a04d-447e-81d8-3e86e1e324b9",
-			SourceAccountID: "7f083c6d-44b8-4e29-a0c8-0f7ae8892a91",
-			TargetAccountID: "877a8a63-4791-41af-838e-2336d9e1a6a7",
-			Amount:          11.50,
-			Currency:        "EUR",
-		})
-		assert.NoError(t, err)
+func TestPostTransaction(t *testing.T) {
+	// Create a new SQL mock
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("failed to create SQL mock: %v", err)
+	}
+	defer db.Close()
 
-		newTxn, err := db.GetTransaction(context.Background(), txn.ID)
-		assert.NoError(t, err)
-		assert.Equal(t, "7f083c6d-44b8-4e29-a0c8-0f7ae8892a91", newTxn.SourceAccountID)
-		assert.Equal(t, "877a8a63-4791-41af-838e-2336d9e1a6a7", newTxn.TargetAccountID)
-		assert.Equal(t, 11.50, newTxn.Amount)
-		assert.Equal(t, "EUR", newTxn.Currency)
+	// Create a new Database instance with the mock DB connection
+	d := Database{Client: db}
 
-		// Clean transaction
-		db.DeleteTransaction(context.Background(), "e0251039-a04d-447e-81d8-3e86e1e324b9")
-	})
+	// Define the expected transaction and row data
+	expectedID := "1111"
+	expectedSourceAccountID := "2222"
+	expectedTargetAccountID := "3333"
+	expectedAmount := 100.50
+	expectedCurrency := "EUR"
+
+	// Add the expected SQL query and result to the mock
+	mock.ExpectExec("INSERT INTO transactions").
+		WithArgs(expectedID, expectedSourceAccountID, expectedTargetAccountID,
+			expectedAmount, expectedCurrency).
+		WillReturnResult(sqlmock.NewResult(1, 1))
+
+	// Create a new account to be posted
+	transaction := models.Transaction{
+		ID:              expectedID,
+		SourceAccountID: expectedSourceAccountID,
+		TargetAccountID: expectedTargetAccountID,
+		Amount:          expectedAmount,
+		Currency:        expectedCurrency,
+	}
+
+	// Call the method being tested
+	result, err := d.PostTransaction(context.Background(), transaction)
+
+	// Assert the expected result
+	assert.NoError(t, err)
+	expectedResult := models.Transaction{
+		ID:              expectedID,
+		SourceAccountID: expectedSourceAccountID,
+		TargetAccountID: expectedTargetAccountID,
+		Amount:          expectedAmount,
+		Currency:        expectedCurrency,
+	}
+	assert.Equal(t, expectedResult, result)
+
+	// Assert that all expectations were met
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestDeleteTransaction(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("Failed to create mock database: %v", err)
+	}
+	defer db.Close()
+
+	// Create a new Database instance with the mock DB connection
+	d := Database{Client: db}
+
+	id := "1111"
+
+	// Expect the query to be executed and return a successful result
+	mock.ExpectExec("DELETE FROM transactions where id = ?").
+		WithArgs(id).
+		WillReturnResult(sqlmock.NewResult(0, 1))
+
+	// Call the DeleteTransaction method
+	err = d.DeleteTransaction(context.Background(), id)
+
+	// Assert that no error occurred
+	assert.NoError(t, err)
+
+	// Ensure all expectations were met
+	assert.NoError(t, mock.ExpectationsWereMet())
 }

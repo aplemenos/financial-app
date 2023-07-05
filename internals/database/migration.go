@@ -14,7 +14,7 @@ import (
 // MigrateDB - runs all migrations in the migrations
 func (d *Database) MigrateDB() error {
 	log.Info("migrating our database")
-	driver, err := postgres.WithInstance(d.Client.DB, &postgres.Config{})
+	driver, err := postgres.WithInstance(d.Client, &postgres.Config{})
 	if err != nil {
 		return fmt.Errorf("could not create the postgres driver: %w", err)
 	}

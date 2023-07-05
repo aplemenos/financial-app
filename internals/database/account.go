@@ -6,7 +6,7 @@ import (
 	"financial-app/pkg/models"
 	"fmt"
 
-	uuid "github.com/satori/go.uuid"
+	log "github.com/sirupsen/logrus"
 )
 
 // AccountRow - models how our account look in the database
@@ -56,26 +56,28 @@ func (d *Database) GetAccount(
 func (d *Database) PostAccount(
 	ctx context.Context, acct models.Account,
 ) (models.Account, error) {
-	acct.ID = uuid.NewV4().String()
-	postRow := AccountRow{
+	acctRow := AccountRow{
 		ID:       acct.ID,
 		Balance:  acct.Balance,
 		Currency: acct.Currency,
 	}
 
-	rows, err := d.Client.NamedQueryContext(
-		ctx,
-		`INSERT INTO accounts 
-		(id, balance, currency) VALUES
-		(:id, :balance, :currency)`,
-		postRow,
+	// Define the insert query
+	query := "INSERT INTO accounts (id, balance, currency) VALUES ($1, $2, $3)"
+
+	result, err := d.Client.ExecContext(
+		ctx, query, acctRow.ID, acctRow.Balance, acctRow.Currency,
 	)
 	if err != nil {
 		return models.Account{}, fmt.Errorf("failed to insert account: %w", err)
 	}
-	if err := rows.Close(); err != nil {
-		return models.Account{}, fmt.Errorf("failed to close rows: %w", err)
+
+	// Get the number of affected rows
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return models.Account{}, fmt.Errorf("failed to get affected rows: %w", err)
 	}
+	log.Info("The total number of affected rows ", rowsAffected)
 
 	return acct, nil
 }
@@ -90,20 +92,22 @@ func (d *Database) UpdateAccount(
 		Currency: acct.Currency,
 	}
 
-	rows, err := d.Client.NamedQueryContext(
-		ctx,
-		`UPDATE accounts SET
-		balance = :balance,
-		currency = :currency
-		WHERE id = :id`,
-		acctRow,
+	// Define the update query
+	query := "UPDATE accounts SET balance = $1, currency = $2 WHERE id = $3"
+
+	result, err := d.Client.ExecContext(
+		ctx, query, acctRow.Balance, acctRow.Currency, acctRow.ID,
 	)
 	if err != nil {
 		return models.Account{}, fmt.Errorf("failed to update account: %w", err)
 	}
-	if err := rows.Close(); err != nil {
-		return models.Account{}, fmt.Errorf("failed to close rows: %w", err)
+
+	// Get the number of affected rows
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return models.Account{}, fmt.Errorf("failed to get affected rows: %w", err)
 	}
+	log.Info("The total number of affected rows ", rowsAffected)
 
 	return convertAccountRowToAccount(acctRow), nil
 }

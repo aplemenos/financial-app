@@ -2,6 +2,7 @@ package database
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"os"
 
@@ -11,12 +12,12 @@ import (
 )
 
 type Database struct {
-	Client *sqlx.DB
+	Client *sql.DB
 }
 
 // NewDatabase - returns a pointer to a database object
 func NewDatabase() (*Database, error) {
-	log.Info("Setting up new database connection")
+	log.Info("setting up new database connection")
 
 	connectionString := fmt.Sprintf(
 		"host=%s port=%s user=%s dbname=%s password=%s sslmode=%s",
@@ -34,10 +35,32 @@ func NewDatabase() (*Database, error) {
 	}
 
 	return &Database{
-		Client: db,
+		Client: db.DB,
 	}, nil
 }
 
 func (d *Database) Ping(ctx context.Context) error {
-	return d.Client.DB.PingContext(ctx)
+	return d.Client.PingContext(ctx)
 }
+
+// // ExecuteDBTransaction - executes a safe transaction using the provided function
+// func (d *Database) ExecuteDBTransaction(fn func(tx *sql.Tx) error) error {
+// 	tx, err := d.Client.DB.Begin()
+// 	if err != nil {
+// 		return err
+// 	}
+
+// 	err = fn(tx)
+// 	if err != nil {
+// 		_ = tx.Rollback()
+// 		return err
+// 	}
+
+// 	err = tx.Commit()
+// 	if err != nil {
+// 		_ = tx.Rollback()
+// 		return err
+// 	}
+
+// 	return nil
+// }

@@ -66,6 +66,11 @@ func (m *MockTransactionStore) DeleteTransaction(ctx context.Context, ID string)
 	return args.Error(0)
 }
 
+// func (m *MockTransactionStore) ExecuteDBTransaction(ctx context.Context) error {
+// 	args := m.Called(ctx)
+// 	return args.Error(0)
+// }
+
 // Ping - is the mock implementation for Ping.
 func (m *MockTransactionStore) Ping(ctx context.Context) error {
 	args := m.Called(ctx)
