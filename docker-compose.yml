@@ -32,9 +32,9 @@ services:
       - "8080:8080"
     healthcheck:
       test: "curl --fail http://localhost:8080/alive || exit 1"
-      interval: 10s
-      timeout: 5s
-      retries: 3
+      interval: 5s
+      timeout: 15s
+      retries: 20
     networks:
       - fullstack
 
