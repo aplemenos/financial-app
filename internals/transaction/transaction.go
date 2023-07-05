@@ -2,6 +2,7 @@ package transaction
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"financial-app/pkg/models"
 
@@ -33,7 +34,7 @@ type TransactionStore interface {
 	PostTransaction(context.Context, models.Transaction) (models.Transaction, error)
 	DeleteTransaction(context.Context, string) error
 
-	// ExecuteDBTransaction(func(*sql.Tx) error) error
+	ExecuteDBTransaction(func(*sql.Tx) error) error
 
 	Ping(context.Context) error
 }
@@ -131,31 +132,41 @@ func (s *Service) PostTransaction(
 		return models.Transaction{}, ErrInsufficientBalance
 	}
 
-	// Debit the balance from the source account
-	sourceAccount.Balance -= txn.Amount
+	// Transfer money securely from source to target account
+	err = s.Store.ExecuteDBTransaction(func(tx *sql.Tx) error {
+		// Debit the balance from the source account
+		sourceAccount.Balance -= txn.Amount
 
-	// Credit the balance to the target account
-	targetAccount.Balance += txn.Amount
+		// Credit the balance to the target account
+		targetAccount.Balance += txn.Amount
 
-	// Update the account balances in the account store
-	_, err = s.Store.UpdateAccount(ctx, txn.SourceAccountID, sourceAccount)
+		// Update the account balances in the account store
+		_, err = s.Store.UpdateAccount(ctx, txn.SourceAccountID, sourceAccount)
+		if err != nil {
+			log.Errorf("an error occurred updating the source account: %s", err.Error())
+			return err
+		}
+
+		_, err = s.Store.UpdateAccount(ctx, txn.TargetAccountID, targetAccount)
+		if err != nil {
+			log.Errorf("an error occurred updating the target account: %s", err.Error())
+			return err
+		}
+
+		// Set a new entry of the completed transaction in the transaction store
+		_, err = s.Store.PostTransaction(ctx, txn)
+		if err != nil {
+			log.Errorf("an error occurred performing the transaction: %s", err.Error())
+			return ErrPostingTransaction
+		}
+
+		return nil
+	})
+
 	if err != nil {
-		log.Errorf("an error occurred updating the source account: %s", err.Error())
 		return models.Transaction{}, err
 	}
 
-	_, err = s.Store.UpdateAccount(ctx, txn.TargetAccountID, targetAccount)
-	if err != nil {
-		log.Errorf("an error occurred updating the target account: %s", err.Error())
-		return models.Transaction{}, err
-	}
-
-	// Set a new entry of the completed transaction in the transaction store
-	txn, err = s.Store.PostTransaction(ctx, txn)
-	if err != nil {
-		log.Errorf("an error occurred performing the transaction: %s", err.Error())
-		return models.Transaction{}, ErrPostingTransaction
-	}
 	return txn, nil
 }
 

@@ -2,6 +2,7 @@ package transaction
 
 import (
 	"context"
+	"database/sql"
 	"financial-app/pkg/models"
 	"testing"
 
@@ -66,10 +67,20 @@ func (m *MockTransactionStore) DeleteTransaction(ctx context.Context, ID string)
 	return args.Error(0)
 }
 
-// func (m *MockTransactionStore) ExecuteDBTransaction(ctx context.Context) error {
-// 	args := m.Called(ctx)
-// 	return args.Error(0)
-// }
+// ExecuteDBTransaction is the mock implementation of ExecuteDBTransaction
+func (m *MockTransactionStore) ExecuteDBTransaction(f func(*sql.Tx) error) error {
+	// Create a mock transaction
+	mockTx := &sql.Tx{}
+
+	// Call the provided function with the mock transaction
+	err := f(mockTx)
+	if err != nil {
+		return err
+	}
+
+	// Return a mock success response
+	return nil
+}
 
 // Ping - is the mock implementation for Ping.
 func (m *MockTransactionStore) Ping(ctx context.Context) error {

@@ -43,24 +43,24 @@ func (d *Database) Ping(ctx context.Context) error {
 	return d.Client.PingContext(ctx)
 }
 
-// // ExecuteDBTransaction - executes a safe transaction using the provided function
-// func (d *Database) ExecuteDBTransaction(fn func(tx *sql.Tx) error) error {
-// 	tx, err := d.Client.DB.Begin()
-// 	if err != nil {
-// 		return err
-// 	}
+// ExecuteDBTransaction - executes a safe transaction via the provided function
+func (d *Database) ExecuteDBTransaction(fn func(tx *sql.Tx) error) error {
+	tx, err := d.Client.Begin()
+	if err != nil {
+		return err
+	}
 
-// 	err = fn(tx)
-// 	if err != nil {
-// 		_ = tx.Rollback()
-// 		return err
-// 	}
+	err = fn(tx)
+	if err != nil {
+		_ = tx.Rollback()
+		return err
+	}
 
-// 	err = tx.Commit()
-// 	if err != nil {
-// 		_ = tx.Rollback()
-// 		return err
-// 	}
+	err = tx.Commit()
+	if err != nil {
+		_ = tx.Rollback()
+		return err
+	}
 
-// 	return nil
-// }
+	return nil
+}
