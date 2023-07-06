@@ -82,36 +82,6 @@ func (d *Database) PostAccount(
 	return acct, nil
 }
 
-// UpdateAccount - updates an account in the database
-func (d *Database) UpdateAccount(
-	ctx context.Context, id string, acct models.Account,
-) (models.Account, error) {
-	acctRow := AccountRow{
-		ID:       id,
-		Balance:  acct.Balance,
-		Currency: acct.Currency,
-	}
-
-	// Define the update query
-	query := "UPDATE accounts SET balance = $1, currency = $2 WHERE id = $3"
-
-	result, err := d.Client.ExecContext(
-		ctx, query, acctRow.Balance, acctRow.Currency, acctRow.ID,
-	)
-	if err != nil {
-		return models.Account{}, fmt.Errorf("failed to update account: %w", err)
-	}
-
-	// Get the number of affected rows
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		return models.Account{}, fmt.Errorf("failed to get affected rows: %w", err)
-	}
-	log.Info("The total number of affected rows ", rowsAffected)
-
-	return convertAccountRowToAccount(acctRow), nil
-}
-
 // DeleteAccount - deletes an account from the database
 func (d *Database) DeleteAccount(ctx context.Context, id string) error {
 	_, err := d.Client.ExecContext(

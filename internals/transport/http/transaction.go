@@ -24,12 +24,12 @@ var (
 type TransactionService interface {
 	GetAccount(ctx context.Context, ID string) (models.Account, error)
 	PostAccount(ctx context.Context, acct models.Account) (models.Account, error)
-	UpdateAccount(ctx context.Context, ID string, newAcct models.Account) (models.Account, error)
 	DeleteAccount(ctx context.Context, ID string) error
 
 	GetTransaction(ctx context.Context, ID string) (models.Transaction, error)
-	PostTransaction(ctx context.Context, txn models.Transaction) (models.Transaction, error)
 	DeleteTransaction(ctx context.Context, ID string) error
+
+	Transfer(ctx context.Context, txn models.Transaction) (models.Transaction, error)
 
 	AliveCheck(ctx context.Context) error
 }
@@ -103,60 +103,6 @@ func (h *Handler) PostAccount(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// UpdateAccountRequest -
-type UpdateAccountRequest struct {
-	Balance  float64 `json:"balance" validate:"required"`
-	Currency string  `json:"currency" validate:"required"`
-}
-
-// convert the validated struct into something that the service layer understands
-// this is a little verbose, but it allows us to remove tight coupling between our components
-func accountFromUpdateAccountRequest(u UpdateAccountRequest) models.Account {
-	return models.Account{
-		Balance:  u.Balance,
-		Currency: u.Currency,
-	}
-}
-
-// UpdateAccount - updates an account by ID
-func (h *Handler) UpdateAccount(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	id := vars["id"]
-
-	if id == "" {
-		log.Error("no account id found")
-		http.Error(w, AccountIDRequired, http.StatusBadRequest)
-		return
-	}
-
-	var updateAcctRequest UpdateAccountRequest
-	if err := json.NewDecoder(r.Body).Decode(&updateAcctRequest); err != nil {
-		log.Error(err)
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	validate := validator.New()
-	err := validate.Struct(updateAcctRequest)
-	if err != nil {
-		log.Error(err)
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	acct := accountFromUpdateAccountRequest(updateAcctRequest)
-
-	acct, err = h.TransactionService.UpdateAccount(r.Context(), id, acct)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	if err := json.NewEncoder(w).Encode(acct); err != nil {
-		log.Error(err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
-}
-
 // DeleteAccount - deletes an account by ID
 func (h *Handler) DeleteAccount(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
@@ -225,8 +171,8 @@ func transactionFromPostTransactionRequest(p PostTransactionRequest) models.Tran
 	}
 }
 
-// PostTransaction - performs a new transaction
-func (h *Handler) PostTransaction(w http.ResponseWriter, r *http.Request) {
+// Transfer - performs a new transaction from source to target account
+func (h *Handler) Transfer(w http.ResponseWriter, r *http.Request) {
 	var postTxnReq PostTransactionRequest
 	if err := json.NewDecoder(r.Body).Decode(&postTxnReq); err != nil {
 		log.Error(err)
@@ -251,7 +197,7 @@ func (h *Handler) PostTransaction(w http.ResponseWriter, r *http.Request) {
 	}
 
 	txn := transactionFromPostTransactionRequest(postTxnReq)
-	txn, err = h.TransactionService.PostTransaction(r.Context(), txn)
+	txn, err = h.TransactionService.Transfer(r.Context(), txn)
 	if err != nil {
 		if errors.Is(err, transaction.ErrNoAccountFound) {
 			http.Error(w, err.Error(), http.StatusNotFound)

@@ -28,7 +28,7 @@ func TestGetAccount(t *testing.T) {
 	expectedCreatedAt := sql.NullTime{Valid: true}
 
 	// Add the expected SQL query and result to the mock
-	mock.ExpectQuery("SELECT id, balance, currency, created_at").
+	mock.ExpectQuery("SELECT id, balance, currency, created_at FROM accounts WHERE id =").
 		WithArgs(expectedID).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "balance", "currency", "created_at"}).
 			AddRow(expectedID, expectedBalance, expectedCurrency, expectedCreatedAt))
@@ -92,49 +92,6 @@ func TestPostAccount(t *testing.T) {
 	assert.Equal(t, expectedResult, result)
 
 	// Assert that all expectations were met
-	assert.NoError(t, mock.ExpectationsWereMet())
-}
-
-func TestUpdateAccount(t *testing.T) {
-	db, mock, err := sqlmock.New()
-	if err != nil {
-		t.Fatalf("Failed to create mock database: %v", err)
-	}
-	defer db.Close()
-
-	// Create a new Database instance with the mock DB connection
-	d := Database{Client: db}
-
-	// Define the expected account and row data
-	expectedID := "1111"
-	expectedBalance := 100.0
-	expectedCurrency := "EUR"
-
-	// Expect the query to be executed and return the mock rows
-	mock.ExpectExec("UPDATE accounts SET").
-		WithArgs(expectedBalance, expectedCurrency, expectedID).
-		WillReturnResult(sqlmock.NewResult(1, 1))
-
-	// Call the UpdateAccount method
-	account := models.Account{
-		ID:       expectedID,
-		Balance:  expectedBalance,
-		Currency: expectedCurrency,
-	}
-	updatedAccount, err := d.UpdateAccount(context.Background(), expectedID, account)
-
-	// Assert that no error occurred
-	assert.NoError(t, err)
-
-	// Assert the updated account values
-	expectedAccount := models.Account{
-		ID:       expectedID,
-		Balance:  expectedBalance,
-		Currency: expectedCurrency,
-	}
-	assert.Equal(t, expectedAccount, updatedAccount)
-
-	// Ensure all expectations were met
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
 

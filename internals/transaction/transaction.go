@@ -2,7 +2,6 @@ package transaction
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"financial-app/pkg/models"
 
@@ -27,14 +26,13 @@ var (
 type TransactionStore interface {
 	GetAccount(context.Context, string) (models.Account, error)
 	PostAccount(context.Context, models.Account) (models.Account, error)
-	UpdateAccount(context.Context, string, models.Account) (models.Account, error)
 	DeleteAccount(context.Context, string) error
 
 	GetTransaction(context.Context, string) (models.Transaction, error)
-	PostTransaction(context.Context, models.Transaction) (models.Transaction, error)
 	DeleteTransaction(context.Context, string) error
 
-	ExecuteDBTransaction(func(*sql.Tx) error) error
+	Transfer(ctx context.Context, txn models.Transaction, sacc models.Account,
+		tacc models.Account) (models.Transaction, error)
 
 	Ping(context.Context) error
 }
@@ -74,17 +72,6 @@ func (s *Service) PostAccount(
 	return acct, nil
 }
 
-// UpdateAccount - updates a account by ID with new account info
-func (s *Service) UpdateAccount(
-	ctx context.Context, ID string, newAccount models.Account,
-) (models.Account, error) {
-	acct, err := s.Store.UpdateAccount(ctx, ID, newAccount)
-	if err != nil {
-		log.Errorf("an error occurred updating the account: %s", err.Error())
-	}
-	return acct, nil
-}
-
 // DeleteAccount- deletes an account from the store by ID
 func (s *Service) DeleteAccount(ctx context.Context, ID string) error {
 	if err := s.Store.DeleteAccount(ctx, ID); err != nil {
@@ -107,8 +94,8 @@ func (s *Service) GetTransaction(
 	return txn, nil
 }
 
-// PostTransanction - performs a new transaction
-func (s *Service) PostTransaction(
+// Transfer - performs a new transaction
+func (s *Service) Transfer(
 	ctx context.Context, txn models.Transaction,
 ) (models.Transaction, error) {
 	log.Info("Perform a new transaction")
@@ -132,42 +119,14 @@ func (s *Service) PostTransaction(
 		return models.Transaction{}, ErrInsufficientBalance
 	}
 
+	// Debit the balance from the source account
+	sourceAccount.Balance -= txn.Amount
+
+	// Credit the balance to the target account
+	targetAccount.Balance += txn.Amount
+
 	// Transfer money securely from source to target account
-	err = s.Store.ExecuteDBTransaction(func(tx *sql.Tx) error {
-		// Debit the balance from the source account
-		sourceAccount.Balance -= txn.Amount
-
-		// Credit the balance to the target account
-		targetAccount.Balance += txn.Amount
-
-		// Update the account balances in the account store
-		_, err = s.Store.UpdateAccount(ctx, txn.SourceAccountID, sourceAccount)
-		if err != nil {
-			log.Errorf("an error occurred updating the source account: %s", err.Error())
-			return err
-		}
-
-		_, err = s.Store.UpdateAccount(ctx, txn.TargetAccountID, targetAccount)
-		if err != nil {
-			log.Errorf("an error occurred updating the target account: %s", err.Error())
-			return err
-		}
-
-		// Set a new entry of the completed transaction in the transaction store
-		_, err = s.Store.PostTransaction(ctx, txn)
-		if err != nil {
-			log.Errorf("an error occurred performing the transaction: %s", err.Error())
-			return ErrPostingTransaction
-		}
-
-		return nil
-	})
-
-	if err != nil {
-		return models.Transaction{}, err
-	}
-
-	return txn, nil
+	return s.Store.Transfer(ctx, txn, sourceAccount, targetAccount)
 }
 
 // DeleteTransaction - deletes a transaction from the store by ID

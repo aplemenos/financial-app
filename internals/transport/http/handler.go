@@ -68,12 +68,11 @@ func NewHandler(txnService TransactionService) *Handler {
 // mapRoutes - sets up all the routes for financial application
 func (h *Handler) mapRoutes() {
 	h.Router.HandleFunc("/alive", h.AliveCheck).Methods("GET")
-	h.Router.HandleFunc("/api/v1/transaction", h.PostTransaction).Methods("POST")
+	h.Router.HandleFunc("/api/v1/transaction", h.Transfer).Methods("POST")
 	h.Router.HandleFunc("/api/v1/transaction/{id}", h.GetTransaction).Methods("GET")
 	h.Router.HandleFunc("/api/v1/transaction/{id}", h.DeleteTransaction).Methods("DELETE")
 
 	h.Router.HandleFunc("/api/v1/account", h.PostAccount).Methods("POST")
-	h.Router.HandleFunc("/api/v1/account/{id}", h.UpdateAccount).Methods("PUT")
 	h.Router.HandleFunc("/api/v1/account/{id}", h.GetAccount).Methods("GET")
 	h.Router.HandleFunc("/api/v1/account/{id}", h.DeleteAccount).Methods("DELETE")
 

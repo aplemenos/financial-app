@@ -2,6 +2,7 @@ package database
 
 import (
 	"context"
+	"database/sql"
 	"financial-app/pkg/models"
 	"fmt"
 
@@ -55,9 +56,12 @@ func (d *Database) GetTransaction(
 	return convertTransactionRowToTransaction(txnRow), nil
 }
 
-// PostTransaction - adds a new transaction to the database
-func (d *Database) PostTransaction(
-	ctx context.Context, txn models.Transaction,
+// Transfer - performs a secure transaction from source to target account
+func (d *Database) Transfer(
+	ctx context.Context,
+	txn models.Transaction,
+	sacc models.Account,
+	tacc models.Account,
 ) (models.Transaction, error) {
 	postRow := TransactionRow{
 		ID:              txn.ID,
@@ -67,26 +71,61 @@ func (d *Database) PostTransaction(
 		Currency:        txn.Currency,
 	}
 
-	result, err := d.Client.ExecContext(
-		ctx,
-		`INSERT INTO transactions 
+	err := d.ExecuteDBTransaction(func(tx *sql.Tx) error {
+		// Define the update query for the accounts
+		query := "UPDATE accounts SET balance = $1 WHERE id = $2"
+		// Update the source account
+		result, err := tx.ExecContext(ctx, query, sacc.Balance, sacc.ID)
+		if err != nil {
+			return fmt.Errorf("failed to update the source account: %w", err)
+		}
+
+		// Get the number of affected rows (source account)
+		rowsAffected, err := result.RowsAffected()
+		if err != nil {
+			return fmt.Errorf("failed to get affected rows: %w", err)
+		}
+		log.Info("The affected rows of source account ", rowsAffected)
+
+		// Update the target account
+		result, err = tx.ExecContext(ctx, query, tacc.Balance, tacc.ID)
+		if err != nil {
+			return fmt.Errorf("failed to update the target account: %w", err)
+		}
+
+		// Get the number of affected rows (target account)
+		rowsAffected, err = result.RowsAffected()
+		if err != nil {
+			return fmt.Errorf("failed to get affected rows: %w", err)
+		}
+		log.Info("The affected rows of target account ", rowsAffected)
+
+		result, err = tx.ExecContext(
+			ctx,
+			`INSERT INTO transactions 
 		(id, source_account_id, target_account_id, amount, currency) VALUES
 		($1, $2, $3, $4, $5)`,
-		postRow.ID, postRow.SourceAccountID, postRow.TargetAccountID, postRow.Amount,
-		postRow.Currency,
-	)
+			postRow.ID, postRow.SourceAccountID, postRow.TargetAccountID, postRow.Amount,
+			postRow.Currency,
+		)
+		if err != nil {
+			return fmt.Errorf("failed to insert transaction: %w", err)
+		}
+
+		// Get the number of affected rows (transaction)
+		rowsAffected, err = result.RowsAffected()
+		if err != nil {
+			return fmt.Errorf("failed to get affected rows: %w", err)
+		}
+		log.Info("The affected rows of inserted transaction ", rowsAffected)
+		return nil
+	})
+
 	if err != nil {
-		return models.Transaction{}, fmt.Errorf("failed to insert transaction: %w", err)
+		return models.Transaction{}, err
 	}
 
-	// Get the number of affected rows
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		return models.Transaction{}, fmt.Errorf("failed to get affected rows: %w", err)
-	}
-	log.Info("The total number of affected rows ", rowsAffected)
-
-	return txn, nil
+	return convertTransactionRowToTransaction(postRow), nil
 }
 
 // DeleteTransaction - deletes a transaction from the database
