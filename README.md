@@ -14,9 +14,11 @@ All the private code, which cannot be imported into other applications, will go 
 ## migrations
 This folder stores the schema files for creating the tables of the postgres DB. It includes also the schema for cleaning the database but in our case, we do not use it yet.
 ## tests
-It will have all integration and E2E tests
+It includes all integration and E2E tests
 ## vendor
 This directory stores all the third-party dependencies locally so that the version doesn’t mismatch late
+## util
+ It is used to store utility or helper functions that are used across different parts of the codebase.
 
 # Usage
 1. Clone the repository or download the code files.

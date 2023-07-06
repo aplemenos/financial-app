@@ -18,6 +18,7 @@ services:
     build: .
     container_name: "financial-api"
     environment:
+      SERVER_ADDR: "0.0.0.0:8080"
       RW_TIMEOUT: 15
       IDLE_TIMEOUT: 15
       SERVER_TIMEOUT: 15

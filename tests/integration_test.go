@@ -7,6 +7,7 @@ import (
 	"context"
 	"financial-app/internals/database"
 	"financial-app/pkg/account"
+	"financial-app/util"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -20,14 +21,14 @@ func TestAccountDatabase(t *testing.T) {
 		acct, err := db.PostAccount(context.Background(), account.Account{
 			ID:       "8de96b25-4c7a-4073-87da-e7b21c9308e1",
 			Balance:  11.50,
-			Currency: "EUR",
+			Currency: util.EUR,
 		})
 		assert.NoError(t, err)
 
 		newAcct, err := db.GetAccount(context.Background(), acct.ID)
 		assert.NoError(t, err)
 		assert.Equal(t, 11.50, newAcct.Balance)
-		assert.Equal(t, "EUR", newAcct.Currency)
+		assert.Equal(t, util.EUR, newAcct.Currency)
 
 		// Clean account
 		db.DeleteAccount(context.Background(), "8de96b25-4c7a-4073-87da-e7b21c9308e1")
@@ -39,7 +40,7 @@ func TestAccountDatabase(t *testing.T) {
 		acct, err := db.PostAccount(context.Background(), account.Account{
 			ID:       "8de96b25-4c7a-4073-87da-e7b21c9308e1",
 			Balance:  12.15,
-			Currency: "EUR",
+			Currency: util.EUR,
 		})
 		assert.NoError(t, err)
 
@@ -56,14 +57,14 @@ func TestAccountDatabase(t *testing.T) {
 		acct, err := db.PostAccount(context.Background(), account.Account{
 			ID:       "8de96b25-4c7a-4073-87da-e7b21c9308e1",
 			Balance:  12.50,
-			Currency: "EUR",
+			Currency: util.EUR,
 		})
 		assert.NoError(t, err)
 
 		newAcct, err := db.GetAccount(context.Background(), acct.ID)
 		assert.NoError(t, err)
 		assert.Equal(t, 12.50, newAcct.Balance)
-		assert.Equal(t, "EUR", newAcct.Currency)
+		assert.Equal(t, util.EUR, newAcct.Currency)
 
 		// Clean account
 		db.DeleteAccount(context.Background(), "8de96b25-4c7a-4073-87da-e7b21c9308e1")

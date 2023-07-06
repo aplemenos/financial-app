@@ -7,6 +7,7 @@ import (
 	"financial-app/internals/service"
 	"financial-app/pkg/account"
 	"financial-app/pkg/transaction"
+	"financial-app/util"
 	"net/http"
 
 	"github.com/gorilla/mux"
@@ -19,6 +20,7 @@ import (
 
 var (
 	AccountIDRequired     = "account id required"
+	CurrencyNotSupported  = "currency is not supported"
 	TransactionIDRequired = "transaction id required"
 )
 
@@ -61,10 +63,18 @@ func (h *Handler) GetAccount(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// validCurrency - validates if the given currency is supported
+func validCurrency(fl validator.FieldLevel) bool {
+	if currency, ok := fl.Field().Interface().(string); ok {
+		return util.IsSupportedCurrency(currency)
+	}
+	return false
+}
+
 // PostAccountRequest
 type PostAccountRequest struct {
 	Balance  float64 `json:"balance" validate:"required"`
-	Currency string  `json:"currency" validate:"required"`
+	Currency string  `json:"currency" validate:"currency"`
 }
 
 func accountFromPostAccountRequest(p PostAccountRequest) account.Account {
@@ -85,7 +95,16 @@ func (h *Handler) PostAccount(w http.ResponseWriter, r *http.Request) {
 	}
 
 	validate := validator.New()
-	err := validate.Struct(postAcctReq)
+	validate.RegisterValidation("currency", validCurrency)
+
+	err := validate.Var(postAcctReq.Currency, "currency")
+	if err != nil {
+		log.Error(err)
+		http.Error(w, CurrencyNotSupported, http.StatusBadRequest)
+		return
+	}
+
+	err = validate.Struct(postAcctReq)
 	if err != nil {
 		log.Error(err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -159,7 +178,7 @@ type PostTransactionRequest struct {
 	SourceAccountID string  `json:"source_account_id" validate:"required"`
 	TargetAccountID string  `json:"target_account_id" validate:"required"`
 	Amount          float64 `json:"amount" validate:"required,numeric,gt=0"`
-	Currency        string  `json:"currency" validate:"required"`
+	Currency        string  `json:"currency" validate:"currency"`
 }
 
 func transactionFromPostTransactionRequest(p PostTransactionRequest) transaction.Transaction {
@@ -182,8 +201,16 @@ func (h *Handler) Transfer(w http.ResponseWriter, r *http.Request) {
 	}
 
 	v := validator.New()
+	v.RegisterValidation("currency", validCurrency)
 
-	err := v.Struct(postTxnReq)
+	err := v.Var(postTxnReq.Currency, "currency")
+	if err != nil {
+		log.Error(err)
+		http.Error(w, CurrencyNotSupported, http.StatusBadRequest)
+		return
+	}
+
+	err = v.Struct(postTxnReq)
 	if err != nil {
 		log.Error(err)
 		http.Error(w, err.Error(), http.StatusBadRequest)

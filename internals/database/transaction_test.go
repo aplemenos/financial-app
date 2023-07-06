@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"financial-app/pkg/account"
 	"financial-app/pkg/transaction"
+	"financial-app/util"
 	"testing"
 	"time"
 
@@ -26,7 +27,7 @@ func TestGetAccount(t *testing.T) {
 	// Define the expected account and row data
 	expectedID := "1111"
 	expectedBalance := 100.0
-	expectedCurrency := "EUR"
+	expectedCurrency := util.EUR
 	expectedCreatedAt := sql.NullTime{Valid: true}
 
 	// Add the expected SQL query and result to the mock
@@ -66,7 +67,7 @@ func TestPostAccount(t *testing.T) {
 	// Define the expected account and row data
 	expectedID := "1111"
 	expectedBalance := 100.0
-	expectedCurrency := "EUR"
+	expectedCurrency := util.EUR
 
 	// Add the expected SQL query and result to the mock
 	mock.ExpectExec("INSERT INTO accounts").
@@ -140,7 +141,7 @@ func TestGetTransaction(t *testing.T) {
 	expectedSourceAccountID := "2222"
 	expectedTargetAccountID := "3333"
 	expectedAmount := 100.50
-	expectedCurrency := "EUR"
+	expectedCurrency := util.EUR
 
 	// Add the expected SQL query and result to the mock
 	mock.ExpectQuery("SELECT id, source_account_id, target_account_id, amount, currency").
@@ -184,18 +185,18 @@ func TestTransfer(t *testing.T) {
 		SourceAccountID: "1111",
 		TargetAccountID: "2222",
 		Amount:          100,
-		Currency:        "EUR",
+		Currency:        util.EUR,
 	}
 	sacc := account.Account{
 		ID:        "1111",
 		Balance:   500,
-		Currency:  "EUR",
+		Currency:  util.EUR,
 		CreatedAt: time.Now(),
 	}
 	tacc := account.Account{
 		ID:        "2222",
 		Balance:   200,
-		Currency:  "EUR",
+		Currency:  util.EUR,
 		CreatedAt: time.Now(),
 	}
 

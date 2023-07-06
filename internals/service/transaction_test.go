@@ -4,6 +4,7 @@ import (
 	"context"
 	"financial-app/pkg/account"
 	"financial-app/pkg/transaction"
+	"financial-app/util"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -83,13 +84,13 @@ func TestTransferHappyPath(t *testing.T) {
 	mockSourceAccount := account.Account{
 		ID:       sourceAccountID,
 		Balance:  500.00,
-		Currency: "EUR",
+		Currency: util.EUR,
 	}
 
 	mockTargetAccount := account.Account{
 		ID:       targetAccountID,
 		Balance:  200.00,
-		Currency: "EUR",
+		Currency: util.EUR,
 	}
 
 	mockTransaction := transaction.Transaction{
@@ -97,19 +98,19 @@ func TestTransferHappyPath(t *testing.T) {
 		SourceAccountID: sourceAccountID,
 		TargetAccountID: targetAccountID,
 		Amount:          100.00,
-		Currency:        "EUR",
+		Currency:        util.EUR,
 	}
 
 	expSourceAccount := account.Account{
 		ID:       sourceAccountID,
 		Balance:  400.00,
-		Currency: "EUR",
+		Currency: util.EUR,
 	}
 
 	expTargetAccount := account.Account{
 		ID:       targetAccountID,
 		Balance:  300.00,
-		Currency: "EUR",
+		Currency: util.EUR,
 	}
 
 	// Set up the expected behavior of the mock store
@@ -148,13 +149,13 @@ func TestTransferInsufficientBalance(t *testing.T) {
 	mockSourceAccount := account.Account{
 		ID:       sourceAccountID,
 		Balance:  500.00,
-		Currency: "EUR",
+		Currency: util.EUR,
 	}
 
 	mockTargetAccount := account.Account{
 		ID:       targetAccountID,
 		Balance:  200.00,
-		Currency: "EUR",
+		Currency: util.EUR,
 	}
 
 	mockTransaction := transaction.Transaction{
@@ -162,7 +163,7 @@ func TestTransferInsufficientBalance(t *testing.T) {
 		SourceAccountID: sourceAccountID,
 		TargetAccountID: targetAccountID,
 		Amount:          600.00,
-		Currency:        "EUR",
+		Currency:        util.EUR,
 	}
 
 	// Set up the expected behavior of the mock store
@@ -201,7 +202,7 @@ func TestTransferOneAccountNotFound(t *testing.T) {
 	mockSourceAccount := account.Account{
 		ID:       sourceAccountID,
 		Balance:  500.00,
-		Currency: "EUR",
+		Currency: util.EUR,
 	}
 
 	mockTransaction := transaction.Transaction{
@@ -209,7 +210,7 @@ func TestTransferOneAccountNotFound(t *testing.T) {
 		SourceAccountID: sourceAccountID,
 		TargetAccountID: targetAccountID,
 		Amount:          100.00,
-		Currency:        "EUR",
+		Currency:        util.EUR,
 	}
 
 	// Set up the expected behavior of the mock store

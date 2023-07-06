@@ -32,13 +32,12 @@ func NewHandler(txnService TransactionService) *Handler {
 		TransactionService: txnService,
 	}
 
-	h.Router = mux.NewRouter()
+	// Set up the routes
+	router := h.mapRoutes()
 	// Sets up our middleware functions
-	h.Router.Use(JSONMiddleware)
+	router.Use(JSONMiddleware)
 	// We want to timeout all requests that take longer than 15 seconds
-	h.Router.Use(TimeoutMiddleware)
-	// set up the routes
-	h.mapRoutes()
+	router.Use(TimeoutMiddleware)
 
 	// Get the timeouts from the enviroment variable
 	rwTimeout, err := strconv.ParseInt(os.Getenv("RW_TIMEOUT"), 10, 0)
@@ -54,28 +53,32 @@ func NewHandler(txnService TransactionService) *Handler {
 	idlet := time.Duration(idleTimeout) * time.Second
 
 	h.Server = &http.Server{
-		Addr: "0.0.0.0:8080",
+		Addr: os.Getenv("SERVER_ADDR"),
 		// Good practice to set timeouts to avoid Slowloris attacks.
 		WriteTimeout: rwt,
 		ReadTimeout:  rwt,
 		IdleTimeout:  idlet,
-		Handler:      h.Router,
+		Handler:      router,
 	}
 	// return our wonderful handler
 	return h
 }
 
 // mapRoutes - sets up all the routes for financial application
-func (h *Handler) mapRoutes() {
-	h.Router.HandleFunc("/alive", h.AliveCheck).Methods("GET")
-	h.Router.HandleFunc("/api/v1/transaction", h.Transfer).Methods("POST")
-	h.Router.HandleFunc("/api/v1/transaction/{id}", h.GetTransaction).Methods("GET")
-	h.Router.HandleFunc("/api/v1/transaction/{id}", h.DeleteTransaction).Methods("DELETE")
+func (h *Handler) mapRoutes() *mux.Router {
+	router := mux.NewRouter()
+	router.HandleFunc("/alive", h.AliveCheck).Methods("GET")
 
-	h.Router.HandleFunc("/api/v1/account", h.PostAccount).Methods("POST")
-	h.Router.HandleFunc("/api/v1/account/{id}", h.GetAccount).Methods("GET")
-	h.Router.HandleFunc("/api/v1/account/{id}", h.DeleteAccount).Methods("DELETE")
+	financialRoutes := router.PathPrefix("/api/v1").Subrouter()
+	financialRoutes.HandleFunc("/transaction", h.Transfer).Methods("POST")
+	financialRoutes.HandleFunc("/transaction/{id}", h.GetTransaction).Methods("GET")
+	financialRoutes.HandleFunc("/transaction/{id}", h.DeleteTransaction).Methods("DELETE")
 
+	financialRoutes.HandleFunc("/account", h.PostAccount).Methods("POST")
+	financialRoutes.HandleFunc("/account/{id}", h.GetAccount).Methods("GET")
+	financialRoutes.HandleFunc("/account/{id}", h.DeleteAccount).Methods("DELETE")
+
+	return router
 }
 
 // Serve - gracefully serves our newly set up handler function

@@ -5,9 +5,11 @@ package tests
 
 import (
 	"encoding/json"
+	"errors"
 	"financial-app/pkg/account"
 	"financial-app/pkg/transaction"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"strings"
 	"testing"
@@ -41,6 +43,11 @@ func createAccount(amount float64) (string, error) {
 
 	defer rsp.Body.Close()
 
+	if rsp.StatusCode != http.StatusOK {
+		err, _ := ioutil.ReadAll(rsp.Body)
+		return "", errors.New("failed to create account: " + string(err))
+	}
+
 	a := account.Account{}
 	err = json.NewDecoder(rsp.Body).Decode(&a)
 	if err != nil {
@@ -66,6 +73,11 @@ func cleanAccount(id string) error {
 		return err
 	}
 
+	if rsp.StatusCode != http.StatusOK {
+		err, _ := ioutil.ReadAll(rsp.Body)
+		return errors.New("failed to delete account: " + string(err))
+	}
+
 	rsp.Body.Close()
 
 	return nil
@@ -85,6 +97,11 @@ func cleanTransaction(id string) error {
 	rsp, err := client.Do(req)
 	if err != nil {
 		return err
+	}
+
+	if rsp.StatusCode != http.StatusOK {
+		err, _ := ioutil.ReadAll(rsp.Body)
+		return errors.New("failed to delete account: " + string(err))
 	}
 
 	rsp.Body.Close()
@@ -126,7 +143,7 @@ func TestPostTransactionHappyPath(t *testing.T) {
 	err = json.NewDecoder(txnRsp.Body).Decode(&txn)
 	assert.NoError(t, err)
 
-	assert.Equal(t, 200, txnRsp.StatusCode)
+	assert.Equal(t, http.StatusOK, txnRsp.StatusCode)
 
 	// Cleanups
 	err = cleanAccount(saID)
@@ -169,7 +186,7 @@ func TestPostTransactionInsufficientBalance(t *testing.T) {
 
 	defer txnRsp.Body.Close()
 
-	assert.Equal(t, 409, txnRsp.StatusCode)
+	assert.Equal(t, http.StatusConflict, txnRsp.StatusCode)
 
 	// Cleanups
 	err = cleanAccount(saID)
@@ -205,7 +222,7 @@ func TestPostTransactionSameAccount(t *testing.T) {
 
 	defer txnRsp.Body.Close()
 
-	assert.Equal(t, 409, txnRsp.StatusCode)
+	assert.Equal(t, http.StatusConflict, txnRsp.StatusCode)
 
 	// Cleanups
 	err = cleanAccount(saID)
@@ -238,7 +255,7 @@ func TestPostTransactionAccountNotFound(t *testing.T) {
 
 	defer txnRsp.Body.Close()
 
-	assert.Equal(t, 404, txnRsp.StatusCode)
+	assert.Equal(t, http.StatusNotFound, txnRsp.StatusCode)
 
 	// Cleanups
 	err = cleanAccount(saID)
@@ -271,7 +288,7 @@ func TestPostTransactionEmptyAccount(t *testing.T) {
 
 	defer txnRsp.Body.Close()
 
-	assert.Equal(t, 400, txnRsp.StatusCode)
+	assert.Equal(t, http.StatusBadRequest, txnRsp.StatusCode)
 
 	// Cleanups
 	err = cleanAccount(saID)
@@ -308,7 +325,7 @@ func TestPostTransactionZeroAmount(t *testing.T) {
 
 	defer txnRsp.Body.Close()
 
-	assert.Equal(t, 400, txnRsp.StatusCode)
+	assert.Equal(t, http.StatusBadRequest, txnRsp.StatusCode)
 
 	// Cleanups
 	err = cleanAccount(saID)
@@ -332,5 +349,5 @@ func TestHealthEndpoint(t *testing.T) {
 
 	defer resp.Body.Close()
 
-	assert.Equal(t, 200, resp.StatusCode)
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
 }
