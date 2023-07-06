@@ -1,8 +1,9 @@
-package transaction
+package service
 
 import (
 	"context"
-	"financial-app/pkg/models"
+	"financial-app/pkg/account"
+	"financial-app/pkg/transaction"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -17,17 +18,17 @@ type MockTransactionStore struct {
 // GetAccount - is a mock implementation of GetAccount method
 func (m *MockTransactionStore) GetAccount(
 	ctx context.Context, ID string,
-) (models.Account, error) {
+) (account.Account, error) {
 	args := m.Called(ctx, ID)
-	return args.Get(0).(models.Account), args.Error(1)
+	return args.Get(0).(account.Account), args.Error(1)
 }
 
 // PostAccount - is a mock implementation of PostAccount method
 func (m *MockTransactionStore) PostAccount(
-	ctx context.Context, acct models.Account,
-) (models.Account, error) {
+	ctx context.Context, acct account.Account,
+) (account.Account, error) {
 	args := m.Called(ctx, acct)
-	return args.Get(0).(models.Account), args.Error(1)
+	return args.Get(0).(account.Account), args.Error(1)
 }
 
 // DeleteAccount - is a mock implementation of DeleteAccount method
@@ -39,20 +40,20 @@ func (m *MockTransactionStore) DeleteAccount(ctx context.Context, ID string) err
 // GetTransaction - is a mock implementation of GetTransaction method
 func (m *MockTransactionStore) GetTransaction(
 	ctx context.Context, ID string,
-) (models.Transaction, error) {
+) (transaction.Transaction, error) {
 	args := m.Called(ctx, ID)
-	return args.Get(0).(models.Transaction), args.Error(1)
+	return args.Get(0).(transaction.Transaction), args.Error(1)
 }
 
 // Transfer - is a mock implementation of Transfer method
 func (m *MockTransactionStore) Transfer(
 	ctx context.Context,
-	txn models.Transaction,
-	sacc models.Account,
-	tacc models.Account,
-) (models.Transaction, error) {
+	txn transaction.Transaction,
+	sacc account.Account,
+	tacc account.Account,
+) (transaction.Transaction, error) {
 	args := m.Called(ctx, txn, sacc, tacc)
-	return args.Get(0).(models.Transaction), args.Error(1)
+	return args.Get(0).(transaction.Transaction), args.Error(1)
 }
 
 // DeleteTransaction - is a mock implementation of DeleteTransaction method
@@ -79,19 +80,19 @@ func TestTransferHappyPath(t *testing.T) {
 	targetAccountID := "2222"
 
 	// AC 1: Happy path for money transfer between two accounts
-	mockSourceAccount := models.Account{
+	mockSourceAccount := account.Account{
 		ID:       sourceAccountID,
 		Balance:  500.00,
 		Currency: "EUR",
 	}
 
-	mockTargetAccount := models.Account{
+	mockTargetAccount := account.Account{
 		ID:       targetAccountID,
 		Balance:  200.00,
 		Currency: "EUR",
 	}
 
-	mockTransaction := models.Transaction{
+	mockTransaction := transaction.Transaction{
 		ID:              "1234",
 		SourceAccountID: sourceAccountID,
 		TargetAccountID: targetAccountID,
@@ -99,13 +100,13 @@ func TestTransferHappyPath(t *testing.T) {
 		Currency:        "EUR",
 	}
 
-	expSourceAccount := models.Account{
+	expSourceAccount := account.Account{
 		ID:       sourceAccountID,
 		Balance:  400.00,
 		Currency: "EUR",
 	}
 
-	expTargetAccount := models.Account{
+	expTargetAccount := account.Account{
 		ID:       targetAccountID,
 		Balance:  300.00,
 		Currency: "EUR",
@@ -144,19 +145,19 @@ func TestTransferInsufficientBalance(t *testing.T) {
 	targetAccountID := "2222"
 
 	// AC 2: Insufficient balance
-	mockSourceAccount := models.Account{
+	mockSourceAccount := account.Account{
 		ID:       sourceAccountID,
 		Balance:  500.00,
 		Currency: "EUR",
 	}
 
-	mockTargetAccount := models.Account{
+	mockTargetAccount := account.Account{
 		ID:       targetAccountID,
 		Balance:  200.00,
 		Currency: "EUR",
 	}
 
-	mockTransaction := models.Transaction{
+	mockTransaction := transaction.Transaction{
 		ID:              "1234",
 		SourceAccountID: sourceAccountID,
 		TargetAccountID: targetAccountID,
@@ -197,13 +198,13 @@ func TestTransferOneAccountNotFound(t *testing.T) {
 	targetAccountID := "2222"
 
 	// AC 3: One or more of the accounts does not exist
-	mockSourceAccount := models.Account{
+	mockSourceAccount := account.Account{
 		ID:       sourceAccountID,
 		Balance:  500.00,
 		Currency: "EUR",
 	}
 
-	mockTransaction := models.Transaction{
+	mockTransaction := transaction.Transaction{
 		ID:              "1234",
 		SourceAccountID: sourceAccountID,
 		TargetAccountID: targetAccountID,
@@ -214,7 +215,7 @@ func TestTransferOneAccountNotFound(t *testing.T) {
 	// Set up the expected behavior of the mock store
 	mockStore.On("GetAccount", mock.Anything, sourceAccountID).Return(mockSourceAccount, nil)
 	mockStore.On("GetAccount", mock.Anything, targetAccountID).
-		Return(models.Account{}, ErrNoAccountFound)
+		Return(account.Account{}, ErrNoAccountFound)
 
 	// Call the method being tested
 	result, err := service.Transfer(context.Background(), mockTransaction)

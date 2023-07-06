@@ -6,7 +6,7 @@ package tests
 import (
 	"context"
 	"financial-app/internals/database"
-	"financial-app/pkg/models"
+	"financial-app/pkg/account"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -17,7 +17,7 @@ func TestAccountDatabase(t *testing.T) {
 		db, err := database.NewDatabase()
 		assert.NoError(t, err)
 
-		acct, err := db.PostAccount(context.Background(), models.Account{
+		acct, err := db.PostAccount(context.Background(), account.Account{
 			ID:       "8de96b25-4c7a-4073-87da-e7b21c9308e1",
 			Balance:  11.50,
 			Currency: "EUR",
@@ -36,7 +36,7 @@ func TestAccountDatabase(t *testing.T) {
 	t.Run("test delete account", func(t *testing.T) {
 		db, err := database.NewDatabase()
 		assert.NoError(t, err)
-		acct, err := db.PostAccount(context.Background(), models.Account{
+		acct, err := db.PostAccount(context.Background(), account.Account{
 			ID:       "8de96b25-4c7a-4073-87da-e7b21c9308e1",
 			Balance:  12.15,
 			Currency: "EUR",
@@ -53,7 +53,7 @@ func TestAccountDatabase(t *testing.T) {
 	t.Run("test get account", func(t *testing.T) {
 		db, err := database.NewDatabase()
 		assert.NoError(t, err)
-		acct, err := db.PostAccount(context.Background(), models.Account{
+		acct, err := db.PostAccount(context.Background(), account.Account{
 			ID:       "8de96b25-4c7a-4073-87da-e7b21c9308e1",
 			Balance:  12.50,
 			Currency: "EUR",

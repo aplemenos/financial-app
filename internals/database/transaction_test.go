@@ -2,13 +2,127 @@ package database
 
 import (
 	"context"
-	"financial-app/pkg/models"
+	"database/sql"
+	"financial-app/pkg/account"
+	"financial-app/pkg/transaction"
 	"testing"
 	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/stretchr/testify/assert"
 )
+
+func TestGetAccount(t *testing.T) {
+	// Create a new SQL mock
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("failed to create SQL mock: %v", err)
+	}
+	defer db.Close()
+
+	// Create a new Database instance with the mock DB connection
+	d := Database{Client: db}
+
+	// Define the expected account and row data
+	expectedID := "1111"
+	expectedBalance := 100.0
+	expectedCurrency := "EUR"
+	expectedCreatedAt := sql.NullTime{Valid: true}
+
+	// Add the expected SQL query and result to the mock
+	mock.ExpectQuery("SELECT id, balance, currency, created_at FROM accounts WHERE id =").
+		WithArgs(expectedID).
+		WillReturnRows(sqlmock.NewRows([]string{"id", "balance", "currency", "created_at"}).
+			AddRow(expectedID, expectedBalance, expectedCurrency, expectedCreatedAt))
+
+	// Call the method being tested
+	result, err := d.GetAccount(context.Background(), expectedID)
+
+	// Assert the expected result
+	assert.NoError(t, err)
+	expectedAccount := account.Account{
+		ID:        expectedID,
+		Balance:   expectedBalance,
+		Currency:  expectedCurrency,
+		CreatedAt: expectedCreatedAt.Time,
+	}
+	assert.Equal(t, expectedAccount, result)
+
+	// Assert that all expectations were met
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestPostAccount(t *testing.T) {
+	// Create a new SQL mock
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("failed to create SQL mock: %v", err)
+	}
+	defer db.Close()
+
+	// Create a new Database instance with the mock DB connection
+	d := Database{Client: db}
+
+	// Define the expected account and row data
+	expectedID := "1111"
+	expectedBalance := 100.0
+	expectedCurrency := "EUR"
+
+	// Add the expected SQL query and result to the mock
+	mock.ExpectExec("INSERT INTO accounts").
+		WithArgs(expectedID, expectedBalance, expectedCurrency).
+		WillReturnResult(sqlmock.NewResult(1, 1))
+
+	// Create a new account to be posted
+	acct := account.Account{
+		ID:       "1111",
+		Balance:  expectedBalance,
+		Currency: expectedCurrency,
+	}
+
+	// Call the method being tested
+	result, err := d.PostAccount(context.Background(), acct)
+
+	// Assert the expected result
+	assert.NoError(t, err)
+	expectedResult := account.Account{
+		ID:        expectedID,
+		Balance:   expectedBalance,
+		Currency:  expectedCurrency,
+		CreatedAt: result.CreatedAt,
+	}
+	assert.Equal(t, expectedResult, result)
+
+	// Assert that all expectations were met
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestDeleteAccount(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("Failed to create mock database: %v", err)
+	}
+	defer db.Close()
+
+	// Create a new Database instance with the mock DB connection
+	d := Database{Client: db}
+
+	id := "1111"
+
+	// Expect the query to be executed and return a successful result
+	mock.ExpectExec("DELETE FROM accounts where id = ?").
+		WithArgs(id).
+		WillReturnResult(sqlmock.NewResult(0, 1))
+
+	// Call the DeleteAccount method
+	err = d.DeleteAccount(context.Background(), id)
+
+	// Assert that no error occurred
+	assert.NoError(t, err)
+
+	// Ensure all expectations were met
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
 
 func TestGetTransaction(t *testing.T) {
 	// Create a new SQL mock
@@ -37,18 +151,18 @@ func TestGetTransaction(t *testing.T) {
 				expectedCurrency))
 
 	// Call the method being tested
-	transaction, err := d.GetTransaction(context.Background(), expectedID)
+	result, err := d.GetTransaction(context.Background(), expectedID)
 
 	// Assert the expected result
 	assert.NoError(t, err)
-	expectedResult := models.Transaction{
+	expectedResult := transaction.Transaction{
 		ID:              expectedID,
 		SourceAccountID: expectedSourceAccountID,
 		TargetAccountID: expectedTargetAccountID,
 		Amount:          expectedAmount,
 		Currency:        expectedCurrency,
 	}
-	assert.Equal(t, expectedResult, transaction)
+	assert.Equal(t, expectedResult, result)
 
 	// Assert that all expectations were met
 	assert.NoError(t, mock.ExpectationsWereMet())
@@ -65,20 +179,20 @@ func TestTransfer(t *testing.T) {
 
 	// Set up the test data
 	ctx := context.Background()
-	txn := models.Transaction{
+	txn := transaction.Transaction{
 		ID:              "1234",
 		SourceAccountID: "1111",
 		TargetAccountID: "2222",
 		Amount:          100,
 		Currency:        "EUR",
 	}
-	sacc := models.Account{
+	sacc := account.Account{
 		ID:        "1111",
 		Balance:   500,
 		Currency:  "EUR",
 		CreatedAt: time.Now(),
 	}
-	tacc := models.Account{
+	tacc := account.Account{
 		ID:        "2222",
 		Balance:   200,
 		Currency:  "EUR",

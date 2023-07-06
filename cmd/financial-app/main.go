@@ -2,7 +2,7 @@ package main
 
 import (
 	"financial-app/internals/database"
-	"financial-app/internals/transaction"
+	"financial-app/internals/service"
 	"financial-app/internals/transport/http"
 	"os"
 
@@ -36,7 +36,7 @@ func Run() error {
 		return err
 	}
 
-	transactionService := transaction.NewService(store)
+	transactionService := service.NewService(store)
 	handler := http.NewHandler(transactionService)
 
 	if err := handler.Serve(); err != nil {

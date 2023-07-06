@@ -4,8 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"financial-app/internals/transaction"
-	"financial-app/pkg/models"
+	"financial-app/internals/service"
+	"financial-app/pkg/account"
+	"financial-app/pkg/transaction"
 	"net/http"
 
 	"github.com/gorilla/mux"
@@ -22,14 +23,14 @@ var (
 )
 
 type TransactionService interface {
-	GetAccount(ctx context.Context, ID string) (models.Account, error)
-	PostAccount(ctx context.Context, acct models.Account) (models.Account, error)
+	GetAccount(ctx context.Context, ID string) (account.Account, error)
+	PostAccount(ctx context.Context, acct account.Account) (account.Account, error)
 	DeleteAccount(ctx context.Context, ID string) error
 
-	GetTransaction(ctx context.Context, ID string) (models.Transaction, error)
+	GetTransaction(ctx context.Context, ID string) (transaction.Transaction, error)
 	DeleteTransaction(ctx context.Context, ID string) error
 
-	Transfer(ctx context.Context, txn models.Transaction) (models.Transaction, error)
+	Transfer(ctx context.Context, txn transaction.Transaction) (transaction.Transaction, error)
 
 	AliveCheck(ctx context.Context) error
 }
@@ -46,7 +47,7 @@ func (h *Handler) GetAccount(w http.ResponseWriter, r *http.Request) {
 
 	txn, err := h.TransactionService.GetAccount(r.Context(), id)
 	if err != nil {
-		if errors.Is(err, transaction.ErrFetchingAccount) {
+		if errors.Is(err, service.ErrFetchingAccount) {
 			http.Error(w, err.Error(), http.StatusNotFound)
 			return
 		}
@@ -66,8 +67,8 @@ type PostAccountRequest struct {
 	Currency string  `json:"currency" validate:"required"`
 }
 
-func accountFromPostAccountRequest(p PostAccountRequest) models.Account {
-	return models.Account{
+func accountFromPostAccountRequest(p PostAccountRequest) account.Account {
+	return account.Account{
 		ID:       uuid.NewV4().String(), // Generate a new uuid
 		Balance:  p.Balance,
 		Currency: p.Currency,
@@ -138,7 +139,7 @@ func (h *Handler) GetTransaction(w http.ResponseWriter, r *http.Request) {
 
 	txn, err := h.TransactionService.GetTransaction(r.Context(), id)
 	if err != nil {
-		if errors.Is(err, transaction.ErrFetchingTransaction) {
+		if errors.Is(err, service.ErrFetchingTransaction) {
 			http.Error(w, err.Error(), http.StatusNotFound)
 			return
 		}
@@ -161,8 +162,8 @@ type PostTransactionRequest struct {
 	Currency        string  `json:"currency" validate:"required"`
 }
 
-func transactionFromPostTransactionRequest(p PostTransactionRequest) models.Transaction {
-	return models.Transaction{
+func transactionFromPostTransactionRequest(p PostTransactionRequest) transaction.Transaction {
+	return transaction.Transaction{
 		ID:              uuid.NewV4().String(), // Generate a new uuid
 		SourceAccountID: p.SourceAccountID,
 		TargetAccountID: p.TargetAccountID,
@@ -199,11 +200,11 @@ func (h *Handler) Transfer(w http.ResponseWriter, r *http.Request) {
 	txn := transactionFromPostTransactionRequest(postTxnReq)
 	txn, err = h.TransactionService.Transfer(r.Context(), txn)
 	if err != nil {
-		if errors.Is(err, transaction.ErrNoAccountFound) {
+		if errors.Is(err, service.ErrNoAccountFound) {
 			http.Error(w, err.Error(), http.StatusNotFound)
 			return
 		}
-		if errors.Is(err, transaction.ErrInsufficientBalance) {
+		if errors.Is(err, service.ErrInsufficientBalance) {
 			http.Error(w, err.Error(), http.StatusConflict)
 			return
 		}

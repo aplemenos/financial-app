@@ -1,9 +1,10 @@
-package transaction
+package service
 
 import (
 	"context"
 	"errors"
-	"financial-app/pkg/models"
+	"financial-app/pkg/account"
+	"financial-app/pkg/transaction"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -24,15 +25,15 @@ var (
 // TransactionStore - defines the interface we need our transaction storage
 // layer to implement
 type TransactionStore interface {
-	GetAccount(context.Context, string) (models.Account, error)
-	PostAccount(context.Context, models.Account) (models.Account, error)
+	GetAccount(context.Context, string) (account.Account, error)
+	PostAccount(context.Context, account.Account) (account.Account, error)
 	DeleteAccount(context.Context, string) error
 
-	GetTransaction(context.Context, string) (models.Transaction, error)
+	GetTransaction(context.Context, string) (transaction.Transaction, error)
 	DeleteTransaction(context.Context, string) error
 
-	Transfer(ctx context.Context, txn models.Transaction, sacc models.Account,
-		tacc models.Account) (models.Transaction, error)
+	Transfer(ctx context.Context, txn transaction.Transaction, sacc account.Account,
+		tacc account.Account) (transaction.Transaction, error)
 
 	Ping(context.Context) error
 }
@@ -50,24 +51,24 @@ func NewService(store TransactionStore) *Service {
 }
 
 // GetAccount - retrieves an account by ID from the store
-func (s *Service) GetAccount(ctx context.Context, ID string) (models.Account, error) {
+func (s *Service) GetAccount(ctx context.Context, ID string) (account.Account, error) {
 	// Calls the store passing in the context
 	acct, err := s.Store.GetAccount(ctx, ID)
 	if err != nil {
 		log.Errorf("an error occured fetching the account: %s", err.Error())
-		return models.Account{}, ErrFetchingAccount
+		return account.Account{}, ErrFetchingAccount
 	}
 	return acct, nil
 }
 
 // PostAccount - create a new account
 func (s *Service) PostAccount(
-	ctx context.Context, acct models.Account,
-) (models.Account, error) {
+	ctx context.Context, acct account.Account,
+) (account.Account, error) {
 	acct, err := s.Store.PostAccount(ctx, acct)
 	if err != nil {
 		log.Errorf("an error occurred performing the account: %s", err.Error())
-		return models.Account{}, ErrPostingAccount
+		return account.Account{}, ErrPostingAccount
 	}
 	return acct, nil
 }
@@ -84,39 +85,39 @@ func (s *Service) DeleteAccount(ctx context.Context, ID string) error {
 // GetTransaction - retrieves a transaction by ID from the store
 func (s *Service) GetTransaction(
 	ctx context.Context, ID string,
-) (models.Transaction, error) {
+) (transaction.Transaction, error) {
 	// Calls the store passing in the context
 	txn, err := s.Store.GetTransaction(ctx, ID)
 	if err != nil {
 		log.Errorf("an error occured fetching the transaction: %s", err.Error())
-		return models.Transaction{}, ErrFetchingTransaction
+		return transaction.Transaction{}, ErrFetchingTransaction
 	}
 	return txn, nil
 }
 
 // Transfer - performs a new transaction
 func (s *Service) Transfer(
-	ctx context.Context, txn models.Transaction,
-) (models.Transaction, error) {
+	ctx context.Context, txn transaction.Transaction,
+) (transaction.Transaction, error) {
 	log.Info("Perform a new transaction")
 
 	sourceAccount, err := s.Store.GetAccount(ctx, txn.SourceAccountID)
 	if err != nil {
 		log.Error("no source account found")
-		return models.Transaction{}, ErrNoAccountFound
+		return transaction.Transaction{}, ErrNoAccountFound
 	}
 
 	targetAccount, err := s.Store.GetAccount(ctx, txn.TargetAccountID)
 	if err != nil {
 		log.Error("no target account found")
-		return models.Transaction{}, ErrNoAccountFound
+		return transaction.Transaction{}, ErrNoAccountFound
 	}
 
 	// Check if the source account has sufficient balance
 	if sourceAccount.Balance < txn.Amount {
 		log.Error("insuffient balance: the source amount ", sourceAccount.Balance, " < ",
 			txn.Amount)
-		return models.Transaction{}, ErrInsufficientBalance
+		return transaction.Transaction{}, ErrInsufficientBalance
 	}
 
 	// Debit the balance from the source account

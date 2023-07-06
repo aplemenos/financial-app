@@ -5,7 +5,8 @@ package tests
 
 import (
 	"encoding/json"
-	"financial-app/pkg/models"
+	"financial-app/pkg/account"
+	"financial-app/pkg/transaction"
 	"fmt"
 	"net/http"
 	"strings"
@@ -40,7 +41,7 @@ func createAccount(amount float64) (string, error) {
 
 	defer rsp.Body.Close()
 
-	a := models.Account{}
+	a := account.Account{}
 	err = json.NewDecoder(rsp.Body).Decode(&a)
 	if err != nil {
 		return "", err
@@ -121,7 +122,7 @@ func TestPostTransactionHappyPath(t *testing.T) {
 
 	defer txnRsp.Body.Close()
 
-	txn := models.Transaction{}
+	txn := transaction.Transaction{}
 	err = json.NewDecoder(txnRsp.Body).Decode(&txn)
 	assert.NoError(t, err)
 
