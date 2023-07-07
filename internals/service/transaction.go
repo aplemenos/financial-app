@@ -5,8 +5,7 @@ import (
 	"errors"
 	"financial-app/pkg/account"
 	"financial-app/pkg/transaction"
-
-	log "github.com/sirupsen/logrus"
+	"financial-app/util/logger"
 )
 
 var (
@@ -52,6 +51,8 @@ func NewService(store TransactionStore) *Service {
 
 // GetAccount - retrieves an account by ID from the store
 func (s *Service) GetAccount(ctx context.Context, ID string) (account.Account, error) {
+	log := logger.NewLoggerFromReqIDCtx(ctx, nil)
+
 	// Calls the store passing in the context
 	acct, err := s.Store.GetAccount(ctx, ID)
 	if err != nil {
@@ -65,6 +66,8 @@ func (s *Service) GetAccount(ctx context.Context, ID string) (account.Account, e
 func (s *Service) PostAccount(
 	ctx context.Context, acct account.Account,
 ) (account.Account, error) {
+	log := logger.NewLoggerFromReqIDCtx(ctx, nil)
+
 	acct, err := s.Store.PostAccount(ctx, acct)
 	if err != nil {
 		log.Errorf("an error occurred performing the account: %s", err.Error())
@@ -75,6 +78,8 @@ func (s *Service) PostAccount(
 
 // DeleteAccount- deletes an account from the store by ID
 func (s *Service) DeleteAccount(ctx context.Context, ID string) error {
+	log := logger.NewLoggerFromReqIDCtx(ctx, nil)
+
 	if err := s.Store.DeleteAccount(ctx, ID); err != nil {
 		log.Errorf("an error occurred deleting the account: %s", err.Error())
 		return ErrDeletingAccount
@@ -86,6 +91,8 @@ func (s *Service) DeleteAccount(ctx context.Context, ID string) error {
 func (s *Service) GetTransaction(
 	ctx context.Context, ID string,
 ) (transaction.Transaction, error) {
+	log := logger.NewLoggerFromReqIDCtx(ctx, nil)
+
 	// Calls the store passing in the context
 	txn, err := s.Store.GetTransaction(ctx, ID)
 	if err != nil {
@@ -99,17 +106,18 @@ func (s *Service) GetTransaction(
 func (s *Service) Transfer(
 	ctx context.Context, txn transaction.Transaction,
 ) (transaction.Transaction, error) {
+	log := logger.NewLoggerFromReqIDCtx(ctx, nil)
 	log.Info("Perform a new transaction")
 
 	sourceAccount, err := s.Store.GetAccount(ctx, txn.SourceAccountID)
 	if err != nil {
-		log.Error("no source account found")
+		log.Error("no source account found with id ", sourceAccount.ID)
 		return transaction.Transaction{}, ErrNoAccountFound
 	}
 
 	targetAccount, err := s.Store.GetAccount(ctx, txn.TargetAccountID)
 	if err != nil {
-		log.Error("no target account found")
+		log.Error("no target account found with id ", targetAccount.ID)
 		return transaction.Transaction{}, ErrNoAccountFound
 	}
 
@@ -132,6 +140,8 @@ func (s *Service) Transfer(
 
 // DeleteTransaction - deletes a transaction from the store by ID
 func (s *Service) DeleteTransaction(ctx context.Context, ID string) error {
+	log := logger.NewLoggerFromReqIDCtx(ctx, nil)
+
 	if err := s.Store.DeleteTransaction(ctx, ID); err != nil {
 		log.Errorf("an error occurred deleting the transaction: %s", err.Error())
 		return ErrDeletingTransaction
@@ -141,6 +151,8 @@ func (s *Service) DeleteTransaction(ctx context.Context, ID string) error {
 
 // AliveCheck - a function that tests we are functionally alive to serve requests
 func (s *Service) AliveCheck(ctx context.Context) error {
+	log := logger.NewLoggerFromReqIDCtx(ctx, nil)
 	log.Info("checking store aliveness")
+
 	return s.Store.Ping(ctx)
 }

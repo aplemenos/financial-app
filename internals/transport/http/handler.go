@@ -38,6 +38,8 @@ func NewHandler(txnService TransactionService) *Handler {
 	router.Use(JSONMiddleware)
 	// We want to timeout all requests that take longer than 15 seconds
 	router.Use(TimeoutMiddleware)
+	// We also want to log every incoming request with request id
+	router.Use(LoggingMiddleware)
 
 	// Get the timeouts from the enviroment variable
 	rwTimeout, err := strconv.ParseInt(os.Getenv("RW_TIMEOUT"), 10, 0)
@@ -105,6 +107,7 @@ func (h *Handler) Serve() error {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
+	// Shut downs gracefully the server
 	if err := h.Server.Shutdown(ctx); err != nil {
 		log.Error(err)
 		return err

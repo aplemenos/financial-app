@@ -2,6 +2,7 @@ package http
 
 import (
 	"context"
+	"financial-app/util/logger"
 	"net/http"
 	"time"
 )
@@ -19,4 +20,10 @@ func TimeoutMiddleware(next http.Handler) http.Handler {
 		defer cancel()
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
+}
+
+// LoggingMiddleware - a handy middleware function that logs out incoming requests
+// using request id through the context.
+func LoggingMiddleware(next http.Handler) http.Handler {
+	return logger.Middleware(next)
 }
