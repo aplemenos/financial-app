@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"financial-app/pkg/account"
 	"financial-app/pkg/transaction"
+	"financial-app/util/logger"
 	"fmt"
 
 	log "github.com/sirupsen/logrus"
@@ -150,6 +151,8 @@ func (d *Database) Transfer(
 	sacc account.Account,
 	tacc account.Account,
 ) (transaction.Transaction, error) {
+	log := logger.NewLoggerFromReqIDCtx(ctx, nil)
+
 	postRow := TransactionRow{
 		ID:              txn.ID,
 		SourceAccountID: txn.SourceAccountID,

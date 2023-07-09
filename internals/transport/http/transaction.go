@@ -7,7 +7,7 @@ import (
 	"financial-app/internals/service"
 	"financial-app/pkg/account"
 	"financial-app/pkg/transaction"
-	"financial-app/util"
+	"financial-app/util/validation"
 	"net/http"
 
 	"github.com/gorilla/mux"
@@ -49,11 +49,7 @@ func (h *Handler) GetAccount(w http.ResponseWriter, r *http.Request) {
 
 	txn, err := h.TransactionService.GetAccount(r.Context(), id)
 	if err != nil {
-		if errors.Is(err, service.ErrFetchingAccount) {
-			http.Error(w, err.Error(), http.StatusNotFound)
-			return
-		}
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
 
@@ -66,7 +62,7 @@ func (h *Handler) GetAccount(w http.ResponseWriter, r *http.Request) {
 // validCurrency - validates if the given currency is supported
 func validCurrency(fl validator.FieldLevel) bool {
 	if currency, ok := fl.Field().Interface().(string); ok {
-		return util.IsSupportedCurrency(currency)
+		return validation.IsSupportedCurrency(currency)
 	}
 	return false
 }
@@ -119,7 +115,7 @@ func (h *Handler) PostAccount(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := json.NewEncoder(w).Encode(acct); err != nil {
 		log.Error(err)
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }
 
@@ -140,7 +136,8 @@ func (h *Handler) DeleteAccount(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := json.NewEncoder(w).Encode(Response{Message: "Successfully Deleted"}); err != nil {
+	if err := json.NewEncoder(w).Encode(
+		Response{Message: "Successfully Deleted"}); err != nil {
 		log.Error(err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
@@ -158,11 +155,7 @@ func (h *Handler) GetTransaction(w http.ResponseWriter, r *http.Request) {
 
 	txn, err := h.TransactionService.GetTransaction(r.Context(), id)
 	if err != nil {
-		if errors.Is(err, service.ErrFetchingTransaction) {
-			http.Error(w, err.Error(), http.StatusNotFound)
-			return
-		}
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
 
@@ -227,11 +220,13 @@ func (h *Handler) Transfer(w http.ResponseWriter, r *http.Request) {
 	txn := transactionFromPostTransactionRequest(postTxnReq)
 	txn, err = h.TransactionService.Transfer(r.Context(), txn)
 	if err != nil {
-		if errors.Is(err, service.ErrNoAccountFound) {
+		if errors.Is(err, service.ErrNoSourceAccountFound(txn.SourceAccountID)) ||
+			errors.Is(err, service.ErrNoSourceAccountFound(txn.TargetAccountID)) {
 			http.Error(w, err.Error(), http.StatusNotFound)
 			return
 		}
-		if errors.Is(err, service.ErrInsufficientBalance) {
+		// Insufficient balance error
+		if !errors.Is(err, service.ErrPostingTransaction) {
 			http.Error(w, err.Error(), http.StatusConflict)
 			return
 		}

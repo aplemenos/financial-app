@@ -2,23 +2,10 @@ package service
 
 import (
 	"context"
-	"errors"
 	"financial-app/pkg/account"
 	"financial-app/pkg/transaction"
 	"financial-app/util/logger"
-)
-
-var (
-	ErrFetchingAccount = errors.New("could not fetch account by ID")
-	ErrPostingAccount  = errors.New("could not perform account")
-	ErrNoAccountFound  = errors.New("no account found")
-	ErrDeletingAccount = errors.New("could not delete account")
-
-	ErrFetchingTransaction = errors.New("could not fetch transaction by ID")
-	ErrInsufficientBalance = errors.New("insufficient balance")
-	ErrPostingTransaction  = errors.New("could not perform transaction")
-	ErrNoTransactionFound  = errors.New("no transaction found")
-	ErrDeletingTransaction = errors.New("could not delete transaction")
+	"financial-app/util/multiplelock"
 )
 
 // TransactionStore - defines the interface we need our transaction storage
@@ -39,25 +26,28 @@ type TransactionStore interface {
 
 // Service - the struct for our transaction service
 type Service struct {
+	MLock multiplelock.MultipleLock
 	Store TransactionStore
 }
 
 // NewService - returns a new transaction service
 func NewService(store TransactionStore) *Service {
 	return &Service{
+		// Thread safe - it is only create one instance
+		MLock: multiplelock.NewMultipleLock(),
 		Store: store,
 	}
 }
 
 // GetAccount - retrieves an account by ID from the store
-func (s *Service) GetAccount(ctx context.Context, ID string) (account.Account, error) {
+func (s *Service) GetAccount(ctx context.Context, id string) (account.Account, error) {
 	log := logger.NewLoggerFromReqIDCtx(ctx, nil)
 
 	// Calls the store passing in the context
-	acct, err := s.Store.GetAccount(ctx, ID)
+	acct, err := s.Store.GetAccount(ctx, id)
 	if err != nil {
-		log.Errorf("an error occured fetching the account: %s", err.Error())
-		return account.Account{}, ErrFetchingAccount
+		log.Errorf("%s", err.Error())
+		return account.Account{}, ErrFetchingAccount(id)
 	}
 	return acct, nil
 }
@@ -77,27 +67,27 @@ func (s *Service) PostAccount(
 }
 
 // DeleteAccount- deletes an account from the store by ID
-func (s *Service) DeleteAccount(ctx context.Context, ID string) error {
+func (s *Service) DeleteAccount(ctx context.Context, ic string) error {
 	log := logger.NewLoggerFromReqIDCtx(ctx, nil)
 
-	if err := s.Store.DeleteAccount(ctx, ID); err != nil {
+	if err := s.Store.DeleteAccount(ctx, ic); err != nil {
 		log.Errorf("an error occurred deleting the account: %s", err.Error())
-		return ErrDeletingAccount
+		return ErrDeletingAccount(ic)
 	}
 	return nil
 }
 
 // GetTransaction - retrieves a transaction by ID from the store
 func (s *Service) GetTransaction(
-	ctx context.Context, ID string,
+	ctx context.Context, id string,
 ) (transaction.Transaction, error) {
 	log := logger.NewLoggerFromReqIDCtx(ctx, nil)
 
 	// Calls the store passing in the context
-	txn, err := s.Store.GetTransaction(ctx, ID)
+	txn, err := s.Store.GetTransaction(ctx, id)
 	if err != nil {
-		log.Errorf("an error occured fetching the transaction: %s", err.Error())
-		return transaction.Transaction{}, ErrFetchingTransaction
+		log.Errorf("%s", err.Error())
+		return transaction.Transaction{}, ErrFetchingTransaction(id)
 	}
 	return txn, nil
 }
@@ -107,25 +97,29 @@ func (s *Service) Transfer(
 	ctx context.Context, txn transaction.Transaction,
 ) (transaction.Transaction, error) {
 	log := logger.NewLoggerFromReqIDCtx(ctx, nil)
-	log.Info("Perform a new transaction")
+	log.Info("Perform a secure tranfer")
+
+	s.MLock.Lock(txn.SourceAccountID)
+	s.MLock.Unlock(txn.SourceAccountID)
 
 	sourceAccount, err := s.Store.GetAccount(ctx, txn.SourceAccountID)
 	if err != nil {
-		log.Error("no source account found with id ", sourceAccount.ID)
-		return transaction.Transaction{}, ErrNoAccountFound
+		log.Errorf("no target account found: %s", err.Error())
+		return transaction.Transaction{}, ErrNoSourceAccountFound(txn.SourceAccountID)
 	}
 
 	targetAccount, err := s.Store.GetAccount(ctx, txn.TargetAccountID)
 	if err != nil {
-		log.Error("no target account found with id ", targetAccount.ID)
-		return transaction.Transaction{}, ErrNoAccountFound
+		log.Errorf("no target account found: %s", err.Error())
+		return transaction.Transaction{}, ErrNoTargetAccountFound(txn.TargetAccountID)
 	}
 
 	// Check if the source account has sufficient balance
 	if sourceAccount.Balance < txn.Amount {
-		log.Error("insuffient balance: the source amount ", sourceAccount.Balance, " < ",
-			txn.Amount)
-		return transaction.Transaction{}, ErrInsufficientBalance
+		log.Error("insuffient balance: the source amount is ", sourceAccount.Balance, " < ",
+			txn.Amount, " for the account with id ", sourceAccount.ID)
+		return transaction.Transaction{},
+			ErrInsufficientBalance(sourceAccount.Balance, txn.Amount, sourceAccount.ID)
 	}
 
 	// Debit the balance from the source account
@@ -135,16 +129,22 @@ func (s *Service) Transfer(
 	targetAccount.Balance += txn.Amount
 
 	// Transfer money securely from source to target account
-	return s.Store.Transfer(ctx, txn, sourceAccount, targetAccount)
+	txn, err = s.Store.Transfer(ctx, txn, sourceAccount, targetAccount)
+	if err != nil {
+		log.Errorf("could not perform transfer: %s", err.Error())
+		return transaction.Transaction{}, ErrPostingTransaction
+	}
+
+	return txn, nil
 }
 
 // DeleteTransaction - deletes a transaction from the store by ID
-func (s *Service) DeleteTransaction(ctx context.Context, ID string) error {
+func (s *Service) DeleteTransaction(ctx context.Context, id string) error {
 	log := logger.NewLoggerFromReqIDCtx(ctx, nil)
 
-	if err := s.Store.DeleteTransaction(ctx, ID); err != nil {
+	if err := s.Store.DeleteTransaction(ctx, id); err != nil {
 		log.Errorf("an error occurred deleting the transaction: %s", err.Error())
-		return ErrDeletingTransaction
+		return ErrDeletingTransaction(id)
 	}
 	return nil
 }

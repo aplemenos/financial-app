@@ -1,4 +1,4 @@
-package util
+package validation
 
 // Constants for all supported currencies
 const (

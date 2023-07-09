@@ -4,7 +4,7 @@ import (
 	"context"
 	"financial-app/pkg/account"
 	"financial-app/pkg/transaction"
-	"financial-app/util"
+	"financial-app/util/validation"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -84,13 +84,13 @@ func TestTransferHappyPath(t *testing.T) {
 	mockSourceAccount := account.Account{
 		ID:       sourceAccountID,
 		Balance:  500.00,
-		Currency: util.EUR,
+		Currency: validation.EUR,
 	}
 
 	mockTargetAccount := account.Account{
 		ID:       targetAccountID,
 		Balance:  200.00,
-		Currency: util.EUR,
+		Currency: validation.EUR,
 	}
 
 	mockTransaction := transaction.Transaction{
@@ -98,19 +98,19 @@ func TestTransferHappyPath(t *testing.T) {
 		SourceAccountID: sourceAccountID,
 		TargetAccountID: targetAccountID,
 		Amount:          100.00,
-		Currency:        util.EUR,
+		Currency:        validation.EUR,
 	}
 
 	expSourceAccount := account.Account{
 		ID:       sourceAccountID,
 		Balance:  400.00,
-		Currency: util.EUR,
+		Currency: validation.EUR,
 	}
 
 	expTargetAccount := account.Account{
 		ID:       targetAccountID,
 		Balance:  300.00,
-		Currency: util.EUR,
+		Currency: validation.EUR,
 	}
 
 	// Set up the expected behavior of the mock store
@@ -149,13 +149,13 @@ func TestTransferInsufficientBalance(t *testing.T) {
 	mockSourceAccount := account.Account{
 		ID:       sourceAccountID,
 		Balance:  500.00,
-		Currency: util.EUR,
+		Currency: validation.EUR,
 	}
 
 	mockTargetAccount := account.Account{
 		ID:       targetAccountID,
 		Balance:  200.00,
-		Currency: util.EUR,
+		Currency: validation.EUR,
 	}
 
 	mockTransaction := transaction.Transaction{
@@ -163,7 +163,7 @@ func TestTransferInsufficientBalance(t *testing.T) {
 		SourceAccountID: sourceAccountID,
 		TargetAccountID: targetAccountID,
 		Amount:          600.00,
-		Currency:        util.EUR,
+		Currency:        validation.EUR,
 	}
 
 	// Set up the expected behavior of the mock store
@@ -178,7 +178,9 @@ func TestTransferInsufficientBalance(t *testing.T) {
 
 	// Assert the result and error
 	assert.Error(t, err)
-	assert.EqualError(t, err, ErrInsufficientBalance.Error())
+	assert.EqualError(t, err,
+		ErrInsufficientBalance(mockSourceAccount.Balance, mockTransaction.Amount,
+			mockSourceAccount.ID).Error())
 
 	assert.Equal(t, "", result.ID)
 	assert.Equal(t, "", result.SourceAccountID)
@@ -202,7 +204,7 @@ func TestTransferOneAccountNotFound(t *testing.T) {
 	mockSourceAccount := account.Account{
 		ID:       sourceAccountID,
 		Balance:  500.00,
-		Currency: util.EUR,
+		Currency: validation.EUR,
 	}
 
 	mockTransaction := transaction.Transaction{
@@ -210,13 +212,13 @@ func TestTransferOneAccountNotFound(t *testing.T) {
 		SourceAccountID: sourceAccountID,
 		TargetAccountID: targetAccountID,
 		Amount:          100.00,
-		Currency:        util.EUR,
+		Currency:        validation.EUR,
 	}
 
 	// Set up the expected behavior of the mock store
 	mockStore.On("GetAccount", mock.Anything, sourceAccountID).Return(mockSourceAccount, nil)
 	mockStore.On("GetAccount", mock.Anything, targetAccountID).
-		Return(account.Account{}, ErrNoAccountFound)
+		Return(account.Account{}, ErrNoTargetAccountFound(targetAccountID))
 
 	// Call the method being tested
 	result, err := service.Transfer(context.Background(), mockTransaction)
@@ -226,7 +228,7 @@ func TestTransferOneAccountNotFound(t *testing.T) {
 
 	// Assert the result and error
 	assert.Error(t, err)
-	assert.EqualError(t, err, ErrNoAccountFound.Error())
+	assert.EqualError(t, err, ErrNoTargetAccountFound(targetAccountID).Error())
 
 	assert.Equal(t, "", result.ID)
 	assert.Equal(t, "", result.SourceAccountID)
