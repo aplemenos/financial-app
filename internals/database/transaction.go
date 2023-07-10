@@ -7,6 +7,7 @@ import (
 	"financial-app/pkg/transaction"
 	"financial-app/util/logger"
 	"fmt"
+	"strings"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -28,9 +29,9 @@ func convertAccountRowToAccount(a AccountRow) account.Account {
 	}
 }
 
-// GetAccount- retrieves an account from the database by ID
+// GetAccount - retrieves an account from the database by ID
 func (d *Database) GetAccount(
-	ctx context.Context, uuid string,
+	ctx context.Context, id string,
 ) (account.Account, error) {
 	// Fetch AccountRow from the database and then convert to models.Account
 	var acctRow AccountRow
@@ -39,7 +40,7 @@ func (d *Database) GetAccount(
 		`SELECT id, balance, currency, created_at 
 		FROM accounts 
 		WHERE id = $1`,
-		uuid,
+		id,
 	)
 	err := row.Scan(
 		&acctRow.ID,
@@ -52,6 +53,61 @@ func (d *Database) GetAccount(
 	}
 
 	return convertAccountRowToAccount(acctRow), nil
+}
+
+// GetAccounts - retrieves accounts from the database by IDs
+func (d *Database) GetAccounts(
+	ctx context.Context, ids []string,
+) (map[string]account.Account, error) {
+	// Create a map to store the fetched account rows by UUID
+	acctRows := make(map[string]AccountRow)
+
+	// Build the query placeholders for the IN operator
+	placeholders := make([]interface{}, len(ids))
+	for i, id := range ids {
+		placeholders[i] = id
+	}
+
+	// Execute the query and retrieve the account rows
+	rows, err := d.Client.QueryContext(
+		ctx,
+		`SELECT id, balance, currency, created_at
+		FROM accounts
+		WHERE id IN (?`+strings.Repeat(",?", len(ids)-1)+`)`,
+		placeholders...,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("an error occurred fetching accounts by UUIDs: %w", err)
+	}
+	defer rows.Close()
+
+	// Iterate through the rows and store them in the map
+	for rows.Next() {
+		var acctRow AccountRow
+		err := rows.Scan(
+			&acctRow.ID,
+			&acctRow.Balance,
+			&acctRow.Currency,
+			&acctRow.CreatedAt,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("an error occurred scanning account row: %w", err)
+		}
+		acctRows[acctRow.ID] = acctRow
+	}
+
+	// Check for any errors during iteration
+	if err = rows.Err(); err != nil {
+		return nil, fmt.Errorf("an error occurred iterating account rows: %w", err)
+	}
+
+	// Convert the account rows to account models
+	accounts := make(map[string]account.Account)
+	for _, acctRow := range acctRows {
+		accounts[acctRow.ID] = convertAccountRowToAccount(acctRow)
+	}
+
+	return accounts, nil
 }
 
 // PostAccount- adds a new account to the database
@@ -118,7 +174,7 @@ func convertTransactionRowToTransaction(t TransactionRow) transaction.Transactio
 
 // GetTransaction - retrieves a transaction from the database by ID
 func (d *Database) GetTransaction(
-	ctx context.Context, uuid string,
+	ctx context.Context, id string,
 ) (transaction.Transaction, error) {
 	// Fetch TransactionRow from the database and then convert to models.Transaction
 	var txnRow TransactionRow
@@ -128,7 +184,7 @@ func (d *Database) GetTransaction(
 		`SELECT id, source_account_id, target_account_id, amount, currency 
 		FROM transactions 
 		WHERE id = $1`,
-		uuid,
+		id,
 	)
 	err := row.Scan(
 		&txnRow.ID,

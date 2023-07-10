@@ -12,6 +12,7 @@ import (
 // layer to implement
 type TransactionStore interface {
 	GetAccount(context.Context, string) (account.Account, error)
+	GetAccounts(context.Context, []string) (map[string]account.Account, error)
 	PostAccount(context.Context, account.Account) (account.Account, error)
 	DeleteAccount(context.Context, string) error
 
@@ -102,17 +103,16 @@ func (s *Service) Transfer(
 	s.MLock.Lock(txn.SourceAccountID)
 	s.MLock.Unlock(txn.SourceAccountID)
 
-	sourceAccount, err := s.Store.GetAccount(ctx, txn.SourceAccountID)
+	// Get the source and target accounts using one database query
+	uuids := []string{txn.SourceAccountID, txn.TargetAccountID}
+	accounts, err := s.Store.GetAccounts(ctx, uuids)
 	if err != nil {
-		log.Errorf("no target account found: %s", err.Error())
-		return transaction.Transaction{}, ErrNoSourceAccountFound(txn.SourceAccountID)
+		log.Errorf("no account found: %s", err.Error())
+		return transaction.Transaction{}, ErrNoAccountsFound(uuids)
 	}
 
-	targetAccount, err := s.Store.GetAccount(ctx, txn.TargetAccountID)
-	if err != nil {
-		log.Errorf("no target account found: %s", err.Error())
-		return transaction.Transaction{}, ErrNoTargetAccountFound(txn.TargetAccountID)
-	}
+	sourceAccount := accounts[txn.SourceAccountID]
+	targetAccount := accounts[txn.TargetAccountID]
 
 	// Check if the source account has sufficient balance
 	if sourceAccount.Balance < txn.Amount {

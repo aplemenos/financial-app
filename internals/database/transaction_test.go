@@ -3,15 +3,76 @@ package database
 import (
 	"context"
 	"database/sql"
+	"database/sql/driver"
 	"financial-app/pkg/account"
 	"financial-app/pkg/transaction"
 	"financial-app/util/validation"
+	"fmt"
 	"testing"
 	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/stretchr/testify/assert"
 )
+
+func TestGetAccounts(t *testing.T) {
+	// Create a new SQL mock
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("failed to create SQL mock: %v", err)
+	}
+	defer db.Close()
+
+	// Create a new Database instance with the mock DB connection
+	d := Database{Client: db}
+
+	// Define the expected account and row data
+	expectedIDs := []string{"1111", "2222"}
+	expectedBalance := 100.0
+	expectedCurrency := validation.EUR
+	expectedCreatedAt := sql.NullTime{Valid: true}
+
+	// Build the query placeholders for the IN operator
+	placeholders := make([]string, len(expectedIDs))
+	args := make([]driver.Value, len(expectedIDs))
+	for i, id := range expectedIDs {
+		placeholders[i] = fmt.Sprintf("$%d", i+1)
+		args[i] = id
+	}
+
+	// Add the expected SQL query and result to the mock
+	mock.ExpectQuery("SELECT id, balance, currency, created_at FROM accounts WHERE id IN").
+		WithArgs(args...).
+		WillReturnRows(sqlmock.NewRows([]string{"id", "balance", "currency", "created_at"}).
+			AddRow(expectedIDs[0], expectedBalance, expectedCurrency, expectedCreatedAt).
+			AddRow(expectedIDs[1], expectedBalance, expectedCurrency, expectedCreatedAt))
+
+	// Call the method being tested
+	results, err := d.GetAccounts(context.Background(), expectedIDs)
+
+	// Assert the expected result
+	assert.NoError(t, err)
+
+	expectedAccounts := map[string]account.Account{
+		expectedIDs[0]: {
+			ID:        expectedIDs[0],
+			Balance:   expectedBalance,
+			Currency:  expectedCurrency,
+			CreatedAt: expectedCreatedAt.Time,
+		},
+		expectedIDs[1]: {
+			ID:        expectedIDs[1],
+			Balance:   expectedBalance,
+			Currency:  expectedCurrency,
+			CreatedAt: expectedCreatedAt.Time,
+		},
+	}
+
+	assert.Equal(t, expectedAccounts, results)
+
+	// Assert that all expectations were met
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
 
 func TestGetAccount(t *testing.T) {
 	// Create a new SQL mock

@@ -220,8 +220,8 @@ func (h *Handler) Transfer(w http.ResponseWriter, r *http.Request) {
 	txn := transactionFromPostTransactionRequest(postTxnReq)
 	txn, err = h.TransactionService.Transfer(r.Context(), txn)
 	if err != nil {
-		if errors.Is(err, service.ErrNoSourceAccountFound(txn.SourceAccountID)) ||
-			errors.Is(err, service.ErrNoSourceAccountFound(txn.TargetAccountID)) {
+		if errors.Is(err,
+			service.ErrNoAccountsFound([]string{txn.SourceAccountID, txn.TargetAccountID})) {
 			http.Error(w, err.Error(), http.StatusNotFound)
 			return
 		}

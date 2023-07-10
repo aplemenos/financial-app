@@ -3,6 +3,7 @@ package service
 import (
 	"errors"
 	"fmt"
+	"strings"
 )
 
 var (
@@ -14,8 +15,8 @@ func ErrFetchingAccount(id string) error {
 	return errors.New("could not fetch account by ID " + id)
 }
 
-func ErrNoSourceAccountFound(sID string) error {
-	return errors.New("no source account found by ID " + sID)
+func ErrNoAccountsFound(ids []string) error {
+	return errors.New("no accounts found by IDs " + strings.Join(ids, ","))
 }
 
 func ErrNoTargetAccountFound(tID string) error {

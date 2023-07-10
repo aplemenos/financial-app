@@ -18,10 +18,18 @@ type MockTransactionStore struct {
 
 // GetAccount - is a mock implementation of GetAccount method
 func (m *MockTransactionStore) GetAccount(
-	ctx context.Context, ID string,
+	ctx context.Context, id string,
 ) (account.Account, error) {
-	args := m.Called(ctx, ID)
+	args := m.Called(ctx, id)
 	return args.Get(0).(account.Account), args.Error(1)
+}
+
+// GetAccounts - is a mock implementation of GetAccounts method
+func (m *MockTransactionStore) GetAccounts(
+	ctx context.Context, ids []string,
+) (map[string]account.Account, error) {
+	args := m.Called(ctx, ids)
+	return args.Get(0).(map[string]account.Account), args.Error(1)
 }
 
 // PostAccount - is a mock implementation of PostAccount method
@@ -33,16 +41,16 @@ func (m *MockTransactionStore) PostAccount(
 }
 
 // DeleteAccount - is a mock implementation of DeleteAccount method
-func (m *MockTransactionStore) DeleteAccount(ctx context.Context, ID string) error {
-	args := m.Called(ctx, ID)
+func (m *MockTransactionStore) DeleteAccount(ctx context.Context, id string) error {
+	args := m.Called(ctx, id)
 	return args.Error(0)
 }
 
 // GetTransaction - is a mock implementation of GetTransaction method
 func (m *MockTransactionStore) GetTransaction(
-	ctx context.Context, ID string,
+	ctx context.Context, id string,
 ) (transaction.Transaction, error) {
-	args := m.Called(ctx, ID)
+	args := m.Called(ctx, id)
 	return args.Get(0).(transaction.Transaction), args.Error(1)
 }
 
@@ -58,8 +66,8 @@ func (m *MockTransactionStore) Transfer(
 }
 
 // DeleteTransaction - is a mock implementation of DeleteTransaction method
-func (m *MockTransactionStore) DeleteTransaction(ctx context.Context, ID string) error {
-	args := m.Called(ctx, ID)
+func (m *MockTransactionStore) DeleteTransaction(ctx context.Context, id string) error {
+	args := m.Called(ctx, id)
 	return args.Error(0)
 }
 
@@ -81,16 +89,17 @@ func TestTransferHappyPath(t *testing.T) {
 	targetAccountID := "2222"
 
 	// AC 1: Happy path for money transfer between two accounts
-	mockSourceAccount := account.Account{
-		ID:       sourceAccountID,
-		Balance:  500.00,
-		Currency: validation.EUR,
-	}
-
-	mockTargetAccount := account.Account{
-		ID:       targetAccountID,
-		Balance:  200.00,
-		Currency: validation.EUR,
+	mockAccounts := map[string]account.Account{
+		sourceAccountID: {
+			ID:       sourceAccountID,
+			Balance:  500.00,
+			Currency: validation.EUR,
+		},
+		targetAccountID: {
+			ID:       targetAccountID,
+			Balance:  200.00,
+			Currency: validation.EUR,
+		},
 	}
 
 	mockTransaction := transaction.Transaction{
@@ -114,8 +123,8 @@ func TestTransferHappyPath(t *testing.T) {
 	}
 
 	// Set up the expected behavior of the mock store
-	mockStore.On("GetAccount", mock.Anything, sourceAccountID).Return(mockSourceAccount, nil)
-	mockStore.On("GetAccount", mock.Anything, targetAccountID).Return(mockTargetAccount, nil)
+	mockStore.On("GetAccounts", mock.Anything, []string{sourceAccountID, targetAccountID}).
+		Return(mockAccounts, nil)
 	mockStore.On("Transfer", mock.Anything, mockTransaction, expSourceAccount,
 		expTargetAccount).Return(mockTransaction, nil)
 
@@ -146,16 +155,17 @@ func TestTransferInsufficientBalance(t *testing.T) {
 	targetAccountID := "2222"
 
 	// AC 2: Insufficient balance
-	mockSourceAccount := account.Account{
-		ID:       sourceAccountID,
-		Balance:  500.00,
-		Currency: validation.EUR,
-	}
-
-	mockTargetAccount := account.Account{
-		ID:       targetAccountID,
-		Balance:  200.00,
-		Currency: validation.EUR,
+	mockAccounts := map[string]account.Account{
+		sourceAccountID: {
+			ID:       sourceAccountID,
+			Balance:  500.00,
+			Currency: validation.EUR,
+		},
+		targetAccountID: {
+			ID:       targetAccountID,
+			Balance:  200.00,
+			Currency: validation.EUR,
+		},
 	}
 
 	mockTransaction := transaction.Transaction{
@@ -167,8 +177,8 @@ func TestTransferInsufficientBalance(t *testing.T) {
 	}
 
 	// Set up the expected behavior of the mock store
-	mockStore.On("GetAccount", mock.Anything, sourceAccountID).Return(mockSourceAccount, nil)
-	mockStore.On("GetAccount", mock.Anything, targetAccountID).Return(mockTargetAccount, nil)
+	mockStore.On("GetAccounts", mock.Anything, []string{sourceAccountID, targetAccountID}).
+		Return(mockAccounts, nil)
 
 	// Call the method being tested
 	result, err := service.Transfer(context.Background(), mockTransaction)
@@ -179,8 +189,8 @@ func TestTransferInsufficientBalance(t *testing.T) {
 	// Assert the result and error
 	assert.Error(t, err)
 	assert.EqualError(t, err,
-		ErrInsufficientBalance(mockSourceAccount.Balance, mockTransaction.Amount,
-			mockSourceAccount.ID).Error())
+		ErrInsufficientBalance(mockAccounts[sourceAccountID].Balance, mockTransaction.Amount,
+			mockAccounts[sourceAccountID].ID).Error())
 
 	assert.Equal(t, "", result.ID)
 	assert.Equal(t, "", result.SourceAccountID)
@@ -201,12 +211,6 @@ func TestTransferOneAccountNotFound(t *testing.T) {
 	targetAccountID := "2222"
 
 	// AC 3: One or more of the accounts does not exist
-	mockSourceAccount := account.Account{
-		ID:       sourceAccountID,
-		Balance:  500.00,
-		Currency: validation.EUR,
-	}
-
 	mockTransaction := transaction.Transaction{
 		ID:              "1234",
 		SourceAccountID: sourceAccountID,
@@ -215,10 +219,11 @@ func TestTransferOneAccountNotFound(t *testing.T) {
 		Currency:        validation.EUR,
 	}
 
+	uuids := []string{sourceAccountID, targetAccountID}
+
 	// Set up the expected behavior of the mock store
-	mockStore.On("GetAccount", mock.Anything, sourceAccountID).Return(mockSourceAccount, nil)
-	mockStore.On("GetAccount", mock.Anything, targetAccountID).
-		Return(account.Account{}, ErrNoTargetAccountFound(targetAccountID))
+	mockStore.On("GetAccounts", mock.Anything, uuids).
+		Return(map[string]account.Account{}, ErrNoAccountsFound(uuids))
 
 	// Call the method being tested
 	result, err := service.Transfer(context.Background(), mockTransaction)
@@ -228,7 +233,7 @@ func TestTransferOneAccountNotFound(t *testing.T) {
 
 	// Assert the result and error
 	assert.Error(t, err)
-	assert.EqualError(t, err, ErrNoTargetAccountFound(targetAccountID).Error())
+	assert.EqualError(t, err, ErrNoAccountsFound(uuids).Error())
 
 	assert.Equal(t, "", result.ID)
 	assert.Equal(t, "", result.SourceAccountID)
