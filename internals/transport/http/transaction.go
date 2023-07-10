@@ -19,9 +19,9 @@ import (
 )
 
 var (
-	AccountIDRequired     = "account id required"
-	CurrencyNotSupported  = "currency is not supported"
-	TransactionIDRequired = "transaction id required"
+	accountIDRequired     = "account id required"
+	currencyNotSupported  = "currency is not supported"
+	transactionIDRequired = "transaction id required"
 )
 
 type TransactionService interface {
@@ -43,7 +43,7 @@ func (h *Handler) GetAccount(w http.ResponseWriter, r *http.Request) {
 	id := vars["id"]
 	if id == "" {
 		log.Error("no account id found")
-		http.Error(w, AccountIDRequired, http.StatusBadRequest)
+		http.Error(w, accountIDRequired, http.StatusBadRequest)
 		return
 	}
 
@@ -96,7 +96,7 @@ func (h *Handler) PostAccount(w http.ResponseWriter, r *http.Request) {
 	err := validate.Var(postAcctReq.Currency, "currency")
 	if err != nil {
 		log.Error(err)
-		http.Error(w, CurrencyNotSupported, http.StatusBadRequest)
+		http.Error(w, currencyNotSupported, http.StatusBadRequest)
 		return
 	}
 
@@ -126,7 +126,7 @@ func (h *Handler) DeleteAccount(w http.ResponseWriter, r *http.Request) {
 
 	if id == "" {
 		log.Error("no account id found")
-		http.Error(w, AccountIDRequired, http.StatusBadRequest)
+		http.Error(w, accountIDRequired, http.StatusBadRequest)
 		return
 	}
 
@@ -149,7 +149,7 @@ func (h *Handler) GetTransaction(w http.ResponseWriter, r *http.Request) {
 	id := vars["id"]
 	if id == "" {
 		log.Error("no transaction id found")
-		http.Error(w, TransactionIDRequired, http.StatusBadRequest)
+		http.Error(w, transactionIDRequired, http.StatusBadRequest)
 		return
 	}
 
@@ -199,7 +199,7 @@ func (h *Handler) Transfer(w http.ResponseWriter, r *http.Request) {
 	err := v.Var(postTxnReq.Currency, "currency")
 	if err != nil {
 		log.Error(err)
-		http.Error(w, CurrencyNotSupported, http.StatusBadRequest)
+		http.Error(w, currencyNotSupported, http.StatusBadRequest)
 		return
 	}
 
@@ -248,7 +248,7 @@ func (h *Handler) DeleteTransaction(w http.ResponseWriter, r *http.Request) {
 
 	if txnID == "" {
 		log.Error("no transaction id found")
-		http.Error(w, TransactionIDRequired, http.StatusBadRequest)
+		http.Error(w, transactionIDRequired, http.StatusBadRequest)
 		return
 	}
 

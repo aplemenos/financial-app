@@ -67,12 +67,12 @@ func (s *Service) PostAccount(
 }
 
 // DeleteAccount- deletes an account from the store by ID
-func (s *Service) DeleteAccount(ctx context.Context, ic string) error {
+func (s *Service) DeleteAccount(ctx context.Context, id string) error {
 	log := logger.NewLoggerFromReqIDCtx(ctx, nil)
 
-	if err := s.Store.DeleteAccount(ctx, ic); err != nil {
+	if err := s.Store.DeleteAccount(ctx, id); err != nil {
 		log.Errorf("an error occurred deleting the account: %s", err.Error())
-		return ErrDeletingAccount(ic)
+		return ErrDeletingAccount(id)
 	}
 	return nil
 }
