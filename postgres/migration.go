@@ -1,20 +1,17 @@
-package database
+package postgres
 
 import (
+	"database/sql"
 	"errors"
 	"fmt"
 
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/postgres"
-	_ "github.com/golang-migrate/migrate/v4/source/file"
-	_ "github.com/lib/pq"
-	log "github.com/sirupsen/logrus"
 )
 
-// MigrateDB - runs all migrations in the migrations
-func (d *Database) MigrateDB() error {
-	log.Info("migrating our database")
-	driver, err := postgres.WithInstance(d.Client, &postgres.Config{})
+// MigrateDB runs all migrations in the migrations
+func MigrateDB(c *sql.DB) error {
+	driver, err := postgres.WithInstance(c, &postgres.Config{})
 	if err != nil {
 		return fmt.Errorf("could not create the postgres driver: %w", err)
 	}
@@ -22,7 +19,6 @@ func (d *Database) MigrateDB() error {
 		"file:///migrations",
 		"postgres", driver)
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 

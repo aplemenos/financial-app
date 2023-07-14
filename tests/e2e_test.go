@@ -6,10 +6,10 @@ package tests
 import (
 	"encoding/json"
 	"errors"
-	"financial-app/pkg/account"
-	"financial-app/pkg/transaction"
+	"financial-app/register"
+	"financial-app/transfer"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strings"
 	"testing"
@@ -28,7 +28,7 @@ func createAccount(amount float64) (string, error) {
 		"balance": ` + fmt.Sprintf("%v", amount) + `,
 		"currency": "EUR"}`
 
-	req, err := http.NewRequest("POST", BASE_URL+"/api/v1/account", strings.NewReader(acctBody))
+	req, err := http.NewRequest("POST", BASE_URL+"/api/v1/accounts", strings.NewReader(acctBody))
 	if err != nil {
 		return "", err
 	}
@@ -44,11 +44,11 @@ func createAccount(amount float64) (string, error) {
 	defer rsp.Body.Close()
 
 	if rsp.StatusCode != http.StatusOK {
-		err, _ := ioutil.ReadAll(rsp.Body)
+		err, _ := io.ReadAll(rsp.Body)
 		return "", errors.New("failed to create account: " + string(err))
 	}
 
-	a := account.Account{}
+	a := register.Account{}
 	err = json.NewDecoder(rsp.Body).Decode(&a)
 	if err != nil {
 		return "", err
@@ -60,7 +60,7 @@ func createAccount(amount float64) (string, error) {
 func cleanAccount(id string) error {
 	client := &http.Client{}
 
-	req, err := http.NewRequest("DELETE", BASE_URL+"/api/v1/account/"+id, nil)
+	req, err := http.NewRequest("DELETE", BASE_URL+"/api/v1/accounts/"+id, nil)
 	if err != nil {
 		return err
 	}
@@ -74,7 +74,7 @@ func cleanAccount(id string) error {
 	}
 
 	if rsp.StatusCode != http.StatusOK {
-		err, _ := ioutil.ReadAll(rsp.Body)
+		err, _ := io.ReadAll(rsp.Body)
 		return errors.New("failed to delete account: " + string(err))
 	}
 
@@ -86,7 +86,7 @@ func cleanAccount(id string) error {
 func cleanTransaction(id string) error {
 	client := &http.Client{}
 
-	req, err := http.NewRequest("DELETE", BASE_URL+"/api/v1/transaction/"+id, nil)
+	req, err := http.NewRequest("DELETE", BASE_URL+"/api/v1/transactions/"+id, nil)
 	if err != nil {
 		return err
 	}
@@ -100,7 +100,7 @@ func cleanTransaction(id string) error {
 	}
 
 	if rsp.StatusCode != http.StatusOK {
-		err, _ := ioutil.ReadAll(rsp.Body)
+		err, _ := io.ReadAll(rsp.Body)
 		return errors.New("failed to delete account: " + string(err))
 	}
 
@@ -109,7 +109,7 @@ func cleanTransaction(id string) error {
 	return nil
 }
 
-func TestPostTransactionHappyPath(t *testing.T) {
+func TestE2E_TransactionHappyPath(t *testing.T) {
 	client := &http.Client{}
 
 	// Create the source account
@@ -127,7 +127,7 @@ func TestPostTransactionHappyPath(t *testing.T) {
 		"amount": 11.50,
 		"currency": "EUR"}`
 
-	txnReq, err := http.NewRequest("POST", BASE_URL+"/api/v1/transaction",
+	txnReq, err := http.NewRequest("POST", BASE_URL+"/api/v1/transactions",
 		strings.NewReader(txnBody))
 	assert.NoError(t, err)
 
@@ -139,7 +139,7 @@ func TestPostTransactionHappyPath(t *testing.T) {
 
 	defer txnRsp.Body.Close()
 
-	txn := transaction.Transaction{}
+	txn := transfer.Transaction{}
 	err = json.NewDecoder(txnRsp.Body).Decode(&txn)
 	assert.NoError(t, err)
 
@@ -156,7 +156,7 @@ func TestPostTransactionHappyPath(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestPostTransactionInsufficientBalance(t *testing.T) {
+func TestE2E_TransactionInsufficientBalance(t *testing.T) {
 	client := &http.Client{}
 
 	// Create the source account
@@ -174,7 +174,7 @@ func TestPostTransactionInsufficientBalance(t *testing.T) {
 		"amount": 11.50,
 		"currency": "EUR"}`
 
-	txnReq, err := http.NewRequest("POST", BASE_URL+"/api/v1/transaction",
+	txnReq, err := http.NewRequest("POST", BASE_URL+"/api/v1/transactions",
 		strings.NewReader(txnBody))
 	assert.NoError(t, err)
 
@@ -196,7 +196,7 @@ func TestPostTransactionInsufficientBalance(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestPostTransactionSameAccount(t *testing.T) {
+func TestE2E_TransactionSameAccount(t *testing.T) {
 	client := &http.Client{}
 
 	// Create the source account
@@ -210,7 +210,7 @@ func TestPostTransactionSameAccount(t *testing.T) {
 		"amount": 11.50,
 		"currency": "EUR"}`
 
-	txnReq, err := http.NewRequest("POST", BASE_URL+"/api/v1/transaction",
+	txnReq, err := http.NewRequest("POST", BASE_URL+"/api/v1/transactions",
 		strings.NewReader(txnBody))
 	assert.NoError(t, err)
 
@@ -229,7 +229,7 @@ func TestPostTransactionSameAccount(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestPostTransactionAccountNotFound(t *testing.T) {
+func TestE2E_TransactionAccountNotFound(t *testing.T) {
 	client := &http.Client{}
 
 	// Create the source account
@@ -243,7 +243,7 @@ func TestPostTransactionAccountNotFound(t *testing.T) {
 		"amount": 11.50,
 		"currency": "EUR"}`
 
-	txnReq, err := http.NewRequest("POST", BASE_URL+"/api/v1/transaction",
+	txnReq, err := http.NewRequest("POST", BASE_URL+"/api/v1/transactions",
 		strings.NewReader(txnBody))
 	assert.NoError(t, err)
 
@@ -262,7 +262,7 @@ func TestPostTransactionAccountNotFound(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestPostTransactionEmptyAccount(t *testing.T) {
+func TestE2E_TransactionEmptyAccount(t *testing.T) {
 	client := &http.Client{}
 
 	// Create the source account
@@ -276,7 +276,7 @@ func TestPostTransactionEmptyAccount(t *testing.T) {
 		"amount": 11.50,
 		"currency": "EUR"}`
 
-	txnReq, err := http.NewRequest("POST", BASE_URL+"/api/v1/transaction",
+	txnReq, err := http.NewRequest("POST", BASE_URL+"/api/v1/transactions",
 		strings.NewReader(txnBody))
 	assert.NoError(t, err)
 
@@ -295,7 +295,7 @@ func TestPostTransactionEmptyAccount(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestPostTransactionZeroAmount(t *testing.T) {
+func TestE2E_TransactionZeroAmount(t *testing.T) {
 	client := &http.Client{}
 
 	// Create the source account
@@ -313,7 +313,7 @@ func TestPostTransactionZeroAmount(t *testing.T) {
 		"amount": 0,
 		"currency": "EUR"}`
 
-	txnReq, err := http.NewRequest("POST", BASE_URL+"/api/v1/transaction",
+	txnReq, err := http.NewRequest("POST", BASE_URL+"/api/v1/transactions",
 		strings.NewReader(txnBody))
 	assert.NoError(t, err)
 
@@ -335,7 +335,7 @@ func TestPostTransactionZeroAmount(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestHealthEndpoint(t *testing.T) {
+func TestE2E_HealthEndpoint(t *testing.T) {
 	client := &http.Client{}
 
 	req, err := http.NewRequest("GET", BASE_URL+"/alive", nil)
