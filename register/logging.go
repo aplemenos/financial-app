@@ -32,7 +32,7 @@ func (s *loggingService) LoadAccount(
 	return s.next.LoadAccount(ctx, id)
 }
 
-func (s *loggingService) Store(
+func (s *loggingService) Register(
 	ctx context.Context, acct account.Account,
 ) (account Account, err error) {
 	defer func(begin time.Time) {
@@ -46,7 +46,7 @@ func (s *loggingService) Store(
 			log.Error(err),
 		)
 	}(time.Now())
-	return s.next.Store(ctx, acct)
+	return s.next.Register(ctx, acct)
 }
 
 func (s *loggingService) Accounts(ctx context.Context) []Account {

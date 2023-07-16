@@ -14,6 +14,9 @@ import (
 	"strconv"
 	"time"
 
+	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
+	stdprometheus "github.com/prometheus/client_golang/prometheus"
+
 	"github.com/jmoiron/sqlx"
 	"go.uber.org/zap"
 )
@@ -70,15 +73,45 @@ func Run() error {
 	accounts = postgres.NewAccountRepository(db.DB, log)
 	transactions = postgres.NewTransactionRepository(db.DB, log)
 
+	fieldKeys := []string{"method"}
+
 	// Setup services
 	var rs register.Service
 	rs = register.NewService(accounts)
 	rs = register.NewLoggingService(log, rs)
+	rs = register.NewInstrumentingService(
+		kitprometheus.NewCounterFrom(stdprometheus.CounterOpts{
+			Namespace: "api",
+			Subsystem: "register_service",
+			Name:      "request_count",
+			Help:      "Number of requests received.",
+		}, fieldKeys),
+		kitprometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
+			Namespace: "api",
+			Subsystem: "register_service",
+			Name:      "request_latency_microseconds",
+			Help:      "Total duration of requests in microseconds.",
+		}, fieldKeys),
+		rs)
 
 	var ts transfer.Service
 	mlock := multiplelock.NewMultipleLock()
 	ts = transfer.NewService(accounts, transactions, mlock)
 	ts = transfer.NewLoggingService(log, ts)
+	ts = transfer.NewInstrumentingService(
+		kitprometheus.NewCounterFrom(stdprometheus.CounterOpts{
+			Namespace: "api",
+			Subsystem: "transfer_service",
+			Name:      "request_count",
+			Help:      "Number of requests received.",
+		}, fieldKeys),
+		kitprometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
+			Namespace: "api",
+			Subsystem: "transfer_service",
+			Name:      "request_latency_microseconds",
+			Help:      "Total duration of requests in microseconds.",
+		}, fieldKeys),
+		ts)
 
 	srv := server.New(rs, ts, log)
 

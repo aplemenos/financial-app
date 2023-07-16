@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/go-chi/chi"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.uber.org/zap"
 )
 
@@ -53,7 +54,7 @@ func New(as register.Service, ts transfer.Service, logger *zap.SugaredLogger) *S
 
 	r.Get("/alive", s.aliveCheck)
 
-	//r.Method("GET", "/metrics", promhttp.Handler())
+	r.Method("GET", "/metrics", promhttp.Handler())
 
 	s.router = r
 

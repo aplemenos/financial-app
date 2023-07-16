@@ -109,12 +109,12 @@ func TestService_Store(t *testing.T) {
 
 	service := NewService(mockAccountRepository)
 
-	storedAccount, err := service.Store(context.Background(), *mockAccount)
+	newAccount, err := service.Register(context.Background(), *mockAccount)
 
 	expectedAccount := assemble(mockAccount)
 
 	assert.NoError(t, err, "Error should be nil")
-	assert.Equal(t, expectedAccount, storedAccount, "Stored account should match the mock account")
+	assert.Equal(t, expectedAccount, newAccount, "Stored account should match the mock account")
 
 	assert.Contains(
 		t,

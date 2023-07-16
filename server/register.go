@@ -27,7 +27,7 @@ type registerHandler struct {
 func (h *registerHandler) router() chi.Router {
 	r := chi.NewRouter()
 
-	r.Post("/", h.store)
+	r.Post("/", h.registerAccount)
 	r.Get("/", h.accounts)
 	r.Route("/{id}", func(r chi.Router) {
 		r.Get("/", h.loadAccount)
@@ -90,8 +90,8 @@ func accountRequestFromAccountDomain(p storeRequest) account.Account {
 	}
 }
 
-// store adds a new account
-func (h *registerHandler) store(w http.ResponseWriter, r *http.Request) {
+// registerAccount registers a new account
+func (h *registerHandler) registerAccount(w http.ResponseWriter, r *http.Request) {
 	var storeReq storeRequest
 	if err := json.NewDecoder(r.Body).Decode(&storeReq); err != nil {
 		h.logger.Error(err.Error())
@@ -117,7 +117,7 @@ func (h *registerHandler) store(w http.ResponseWriter, r *http.Request) {
 	}
 
 	acct := accountRequestFromAccountDomain(storeReq)
-	account, err := h.s.Store(r.Context(), acct)
+	account, err := h.s.Register(r.Context(), acct)
 	if err != nil {
 		h.logger.Error(err.Error())
 		http.Error(w, err.Error(), http.StatusInternalServerError)

@@ -11,8 +11,8 @@ type Service interface {
 	// LoadAccount returns a read model of an account
 	LoadAccount(ctx context.Context, id account.AccountID) (Account, error)
 
-	// Store saves a new account
-	Store(ctx context.Context, acct account.Account) (Account, error)
+	// Register registers a new account
+	Register(ctx context.Context, acct account.Account) (Account, error)
 
 	// Accounts returns a list of accounts have been registered
 	Accounts(ctx context.Context) []Account
@@ -32,14 +32,15 @@ func (s *service) LoadAccount(
 	return assemble(acct), nil
 }
 
-func (s *service) Store(
+func (s *service) Register(
 	ctx context.Context, acct account.Account,
 ) (Account, error) {
-	accounts, err := s.accounts.Store(ctx, &acct)
+	// Store the new account to the repository
+	account, err := s.accounts.Store(ctx, &acct)
 	if err != nil {
 		return Account{}, err
 	}
-	return assemble(accounts), nil
+	return assemble(account), nil
 }
 
 func (s *service) Accounts(ctx context.Context) []Account {
