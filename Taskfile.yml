@@ -24,6 +24,10 @@ tasks:
   vendor:
     cmds:
       - go mod vendor
+  
+  vulncheck:
+    cmds:
+      - govulncheck ./... 
 
   integration-test:
     cmds:
