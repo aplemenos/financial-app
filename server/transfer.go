@@ -39,7 +39,7 @@ func (h *transferHandler) router() chi.Router {
 
 // loadTransaction retrieves a transaction by ID
 func (h *transferHandler) loadTransaction(w http.ResponseWriter, r *http.Request) {
-	id := transaction.TransactionID(chi.URLParam(r, "trackingID"))
+	id := transaction.TransactionID(chi.URLParam(r, "id"))
 	if id == "" {
 		h.logger.Error("no transaction id found")
 		http.Error(w, transactionIDRequired, http.StatusBadRequest)
