@@ -41,9 +41,10 @@ func New(as register.Service, ts transfer.Service, logger *zap.SugaredLogger) *S
 
 	r := chi.NewRouter()
 
-	r.Use(accessControl)
-	r.Use(jsonMiddleware)
-	r.Use(timeoutMiddleware)
+	r.Use(s.accessControl)
+	r.Use(s.jsonMiddleware)
+	r.Use(s.timeoutMiddleware)
+	r.Use(s.recovery)
 
 	r.Route("/api/v1", func(r chi.Router) {
 		ah := registerHandler{s.Account, s.Logger}
@@ -80,14 +81,14 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	s.router.ServeHTTP(w, r)
 }
 
-func jsonMiddleware(h http.Handler) http.Handler {
+func (s *Server) jsonMiddleware(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 		h.ServeHTTP(w, r)
 	})
 }
 
-func timeoutMiddleware(h http.Handler) http.Handler {
+func (s *Server) timeoutMiddleware(h http.Handler) http.Handler {
 	timeout := os.Getenv("SERVER_TIMEOUT")
 	serverTimeout, _ := strconv.ParseInt(timeout, 10, 0)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -97,7 +98,29 @@ func timeoutMiddleware(h http.Handler) http.Handler {
 	})
 }
 
-func accessControl(h http.Handler) http.Handler {
+// recovery is a wrapper which will try to recover from any panic error and report it
+func (s *Server) recovery(h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+		defer func() {
+			err := recover()
+			if err != nil {
+				s.Logger.Error(err)
+
+				w.WriteHeader(http.StatusInternalServerError)
+
+				json.NewEncoder(w).Encode(map[string]string{
+					"status": "error",
+					"desc":   "There was an internal server error",
+				})
+			}
+		}()
+
+		h.ServeHTTP(w, r)
+	})
+}
+
+func (s *Server) accessControl(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
