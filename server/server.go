@@ -64,14 +64,14 @@ func New(as register.Service, ts transfer.Service, logger *zap.SugaredLogger) *S
 
 func (s *Server) aliveCheck(w http.ResponseWriter, r *http.Request) {
 	if err := s.Transfer.Alive(r.Context()); err != nil {
-		s.Logger.Error(err.Error())
+		s.Logger.Error(err)
 		http.Error(w, err.Error(), http.StatusServiceUnavailable)
 		return
 	}
 
 	w.WriteHeader(http.StatusOK)
 	if err := json.NewEncoder(w).Encode(response{Message: "I am Alive!"}); err != nil {
-		s.Logger.Error(err.Error())
+		s.Logger.Error(err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}

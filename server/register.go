@@ -53,7 +53,7 @@ func (h *registerHandler) loadAccount(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := json.NewEncoder(w).Encode(acct); err != nil {
-		h.logger.Error(err.Error())
+		h.logger.Error(err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }
@@ -63,7 +63,7 @@ func (h *registerHandler) accounts(w http.ResponseWriter, r *http.Request) {
 	accounts := h.s.Accounts(r.Context())
 
 	if err := json.NewEncoder(w).Encode(accounts); err != nil {
-		h.logger.Error(err.Error())
+		h.logger.Error(err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }
@@ -94,7 +94,7 @@ func accountRequestFromAccountDomain(p storeRequest) account.Account {
 func (h *registerHandler) registerAccount(w http.ResponseWriter, r *http.Request) {
 	var storeReq storeRequest
 	if err := json.NewDecoder(r.Body).Decode(&storeReq); err != nil {
-		h.logger.Error(err.Error())
+		h.logger.Error(err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -104,14 +104,14 @@ func (h *registerHandler) registerAccount(w http.ResponseWriter, r *http.Request
 
 	err := validate.Var(storeReq.Currency, "currency")
 	if err != nil {
-		h.logger.Error(err.Error())
+		h.logger.Error(err)
 		http.Error(w, currencyNotSupported, http.StatusBadRequest)
 		return
 	}
 
 	err = validate.Struct(storeReq)
 	if err != nil {
-		h.logger.Error(err.Error())
+		h.logger.Error(err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -119,12 +119,12 @@ func (h *registerHandler) registerAccount(w http.ResponseWriter, r *http.Request
 	acct := accountRequestFromAccountDomain(storeReq)
 	account, err := h.s.Register(r.Context(), acct)
 	if err != nil {
-		h.logger.Error(err.Error())
+		h.logger.Error(err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	if err := json.NewEncoder(w).Encode(account); err != nil {
-		h.logger.Error(err.Error())
+		h.logger.Error(err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }
@@ -146,7 +146,7 @@ func (h *registerHandler) clean(w http.ResponseWriter, r *http.Request) {
 
 	if err := json.NewEncoder(w).Encode(
 		response{Message: "Successfully Deleted"}); err != nil {
-		h.logger.Error(err.Error())
+		h.logger.Error(err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }

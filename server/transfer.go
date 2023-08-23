@@ -53,7 +53,7 @@ func (h *transferHandler) loadTransaction(w http.ResponseWriter, r *http.Request
 	}
 
 	if err := json.NewEncoder(w).Encode(txn); err != nil {
-		h.logger.Error(err.Error())
+		h.logger.Error(err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -64,7 +64,7 @@ func (h *transferHandler) transactions(w http.ResponseWriter, r *http.Request) {
 	txns := h.s.Transactions(r.Context())
 
 	if err := json.NewEncoder(w).Encode(txns); err != nil {
-		h.logger.Error(err.Error())
+		h.logger.Error(err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }
@@ -92,7 +92,7 @@ func (h *transferHandler) transfer(w http.ResponseWriter, r *http.Request) {
 	var transferReq transferRequest
 
 	if err := json.NewDecoder(r.Body).Decode(&transferReq); err != nil {
-		h.logger.Error(err.Error())
+		h.logger.Error(err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -102,21 +102,21 @@ func (h *transferHandler) transfer(w http.ResponseWriter, r *http.Request) {
 
 	err := v.Var(transferReq.Currency, "currency")
 	if err != nil {
-		h.logger.Error(err.Error())
+		h.logger.Error(err)
 		http.Error(w, currencyNotSupported, http.StatusBadRequest)
 		return
 	}
 
 	err = v.Struct(transferReq)
 	if err != nil {
-		h.logger.Error(err.Error())
+		h.logger.Error(err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
 	err = v.VarWithValue(transferReq.SourceAccountID, transferReq.TargetAccountID, "necsfield")
 	if err != nil {
-		h.logger.Error(err.Error())
+		h.logger.Error(err)
 		http.Error(w, err.Error(), http.StatusConflict)
 		return
 	}
@@ -143,7 +143,7 @@ func (h *transferHandler) transfer(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := json.NewEncoder(w).Encode(transact); err != nil {
-		h.logger.Error(err.Error())
+		h.logger.Error(err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -160,13 +160,13 @@ func (h *transferHandler) clean(w http.ResponseWriter, r *http.Request) {
 
 	err := h.s.Clean(r.Context(), id)
 	if err != nil {
-		h.logger.Error(err.Error())
+		h.logger.Error(err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	if err := json.NewEncoder(w).Encode(response{Message: "Successfully Deleted"}); err != nil {
-		h.logger.Error(err.Error())
+		h.logger.Error(err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }
