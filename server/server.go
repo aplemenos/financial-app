@@ -105,14 +105,10 @@ func (s *Server) recovery(h http.Handler) http.Handler {
 		defer func() {
 			err := recover()
 			if err != nil {
+				// Log the error in order to know the failure's reason
 				s.Logger.Error(err)
 
-				w.WriteHeader(http.StatusInternalServerError)
-
-				json.NewEncoder(w).Encode(map[string]string{
-					"status": "error",
-					"desc":   "There was an internal server error",
-				})
+				http.Error(w, "There was an internal server error", http.StatusInternalServerError)
 			}
 		}()
 
