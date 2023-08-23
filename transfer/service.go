@@ -42,7 +42,7 @@ func (s *service) Transfer(
 	ctx context.Context, txn transaction.Transaction,
 ) (Transaction, error) {
 	s.mlock.Lock(txn.SourceAccountID)
-	s.mlock.Unlock(txn.SourceAccountID)
+	defer s.mlock.Unlock(txn.SourceAccountID)
 
 	// Get the source and target accounts using one database query
 	uuids := []account.AccountID{txn.SourceAccountID, txn.TargetAccountID}
