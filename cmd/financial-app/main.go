@@ -1,21 +1,13 @@
 package main
 
 import (
-	"financial-app/domain/account"
-	"financial-app/domain/transaction"
-	"financial-app/multiplelock"
-	"financial-app/postgres"
-	"financial-app/register"
-	"financial-app/server"
-	"financial-app/transfer"
+	"financial-app/pkg/http/rest"
+	"financial-app/pkg/postgres"
 	"fmt"
 	"net/http"
 	"os"
 	"strconv"
 	"time"
-
-	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
-	stdprometheus "github.com/prometheus/client_golang/prometheus"
 
 	"github.com/jmoiron/sqlx"
 	"go.uber.org/zap"
@@ -34,8 +26,8 @@ const (
 	defaultSSLMode       = "disable"
 )
 
-// Run - sets up our application
-func Run() error {
+// run sets up our application
+func run() error {
 	// Build a production logger
 	logger, _ := zap.NewProduction()
 	defer logger.Sync() // flushes buffer, if any
@@ -43,6 +35,7 @@ func Run() error {
 
 	log.Info("setting up financial app")
 
+	// Setup the postgres DB
 	connectionString := fmt.Sprintf(
 		"host=%s port=%s user=%s dbname=%s password=%s sslmode=%s",
 		envString("DB_HOST", defaultDBHost),
@@ -59,78 +52,45 @@ func Run() error {
 		return err
 	}
 
-	err = postgres.MigrateDB(db.DB)
+	// Setup the repositories
+	accountRepo := postgres.NewAccountRepository(db.DB, log)
+	transactionRepo := postgres.NewTransactionRepository(db.DB, log)
+	healthRepo := postgres.NewHealthcheckRepository(db.DB, log)
+
+	// Setup the server
+	srv := rest.NewServer(accountRepo, transactionRepo, healthRepo, log)
+
+	// Run the server
+	serverConfig, err := loadServerSettings(srv)
 	if err != nil {
-		log.Error("failed to setup database")
+		log.Error(err)
 		return err
 	}
 
-	// Setup repositories
-	var (
-		accounts     account.AccountRepository
-		transactions transaction.TransactionRepository
-	)
-	accounts = postgres.NewAccountRepository(db.DB, log)
-	transactions = postgres.NewTransactionRepository(db.DB, log)
+	if err := srv.Serve(serverConfig,
+		envString("SERVER_TIMEOUT", defaultServerTimeout)); err != nil {
+		log.Error("failed to gracefully serve financial app")
+		return err
+	}
 
-	fieldKeys := []string{"method"}
+	return nil
+}
 
-	// Setup services
-	var rs register.Service
-	rs = register.NewService(accounts)
-	rs = register.NewLoggingService(log, rs)
-	rs = register.NewInstrumentingService(
-		kitprometheus.NewCounterFrom(stdprometheus.CounterOpts{
-			Namespace: "api",
-			Subsystem: "register_service",
-			Name:      "request_count",
-			Help:      "Number of requests received.",
-		}, fieldKeys),
-		kitprometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
-			Namespace: "api",
-			Subsystem: "register_service",
-			Name:      "request_latency_microseconds",
-			Help:      "Total duration of requests in microseconds.",
-		}, fieldKeys),
-		rs)
-
-	var ts transfer.Service
-	mlock := multiplelock.NewMultipleLock()
-	ts = transfer.NewService(accounts, transactions, mlock)
-	ts = transfer.NewLoggingService(log, ts)
-	ts = transfer.NewInstrumentingService(
-		kitprometheus.NewCounterFrom(stdprometheus.CounterOpts{
-			Namespace: "api",
-			Subsystem: "transfer_service",
-			Name:      "request_count",
-			Help:      "Number of requests received.",
-		}, fieldKeys),
-		kitprometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
-			Namespace: "api",
-			Subsystem: "transfer_service",
-			Name:      "request_latency_microseconds",
-			Help:      "Total duration of requests in microseconds.",
-		}, fieldKeys),
-		ts)
-
-	srv := server.New(rs, ts, log)
-
+func loadServerSettings(srv *rest.Server) (*http.Server, error) {
 	// Get the timeouts from the enviroment variable
 	rwTimeout, err := strconv.ParseInt(envString("RW_TIMEOUT", defaultRWTimeout), 10, 0)
 	if err != nil {
-		log.Error("failed to parse RW_TIMEOUT")
-		return err
+		return nil, err
 	}
 	rwt := time.Duration(rwTimeout) * time.Second
 
 	idleTimeout, err := strconv.ParseInt(envString("IDLE_TIMEOUT", defaultIdleTimeout), 10, 0)
 	if err != nil {
-		log.Error("failed to parse IDLE_TIMEOUT")
-		return err
+		return nil, err
 	}
 	idlet := time.Duration(idleTimeout) * time.Second
 
-	server := &http.Server{
+	serverConfig := &http.Server{
 		Addr: envString("SERVER_ADDR", defaultServerAddr),
 		// Good practice to set timeouts to avoid Slowloris attacks.
 		WriteTimeout: rwt,
@@ -139,19 +99,7 @@ func Run() error {
 		Handler:      srv,
 	}
 
-	if err := srv.Serve(server, envString("SERVER_TIMEOUT", defaultServerTimeout)); err != nil {
-		log.Error("failed to gracefully serve financial app")
-		return err
-	}
-
-	return nil
-}
-
-func main() {
-	if err := Run(); err != nil {
-		zap.S().Error(err)
-		zap.S().Panic("Error starting up financial app")
-	}
+	return serverConfig, nil
 }
 
 func envString(env, fallback string) string {
@@ -160,4 +108,11 @@ func envString(env, fallback string) string {
 		return fallback
 	}
 	return e
+}
+
+func main() {
+	if err := run(); err != nil {
+		zap.S().Error(err)
+		zap.S().Panic("Error starting up financial app")
+	}
 }

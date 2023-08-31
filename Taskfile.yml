@@ -5,6 +5,14 @@ tasks:
     cmds:
       - go build -v ./... 
   
+  migrate-create:
+   cmds:
+    - docker compose -f docker-compose.yml --profile tools run --rm migrate create -ext sql -dir /migrations create_user_table 
+  
+  migrate-up:
+   cmds:
+    - docker compose -f docker-compose.yml --profile tools run --rm migrate up
+  
   test:
     cmds:
       - go test -v ./...

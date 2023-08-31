@@ -6,8 +6,8 @@ package tests
 import (
 	"encoding/json"
 	"errors"
-	"financial-app/register"
-	"financial-app/transfer"
+	"financial-app/pkg/account"
+	"financial-app/pkg/transaction"
 	"fmt"
 	"io"
 	"net/http"
@@ -48,7 +48,7 @@ func createAccount(amount float64) (string, error) {
 		return "", errors.New("failed to create account: " + string(err))
 	}
 
-	a := register.Account{}
+	a := account.Account{}
 	err = json.NewDecoder(rsp.Body).Decode(&a)
 	if err != nil {
 		return "", err
@@ -73,7 +73,7 @@ func cleanAccount(id string) error {
 		return err
 	}
 
-	if rsp.StatusCode != http.StatusOK {
+	if rsp.StatusCode != http.StatusNoContent {
 		err, _ := io.ReadAll(rsp.Body)
 		return errors.New("failed to delete account: " + string(err))
 	}
@@ -99,7 +99,7 @@ func cleanTransaction(id string) error {
 		return err
 	}
 
-	if rsp.StatusCode != http.StatusOK {
+	if rsp.StatusCode != http.StatusNoContent {
 		err, _ := io.ReadAll(rsp.Body)
 		return errors.New("failed to delete account: " + string(err))
 	}
@@ -139,7 +139,7 @@ func TestE2E_TransactionHappyPath(t *testing.T) {
 
 	defer txnRsp.Body.Close()
 
-	txn := transfer.Transaction{}
+	txn := transaction.Transaction{}
 	err = json.NewDecoder(txnRsp.Body).Decode(&txn)
 	assert.NoError(t, err)
 

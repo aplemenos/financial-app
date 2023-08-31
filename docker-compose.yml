@@ -13,6 +13,25 @@ services:
       - fullstack
     volumes:
       - database_postgres:/var/lib/postgresql/data
+    
+  migrate:
+    image: migrate/migrate:v4.15.2
+    networks:
+      - fullstack
+    profiles: ["tools"]
+    volumes:
+      - ./migrations:/migrations
+    entrypoint:
+      [
+        "migrate",
+        "-path",
+        "/migrations",
+        "-database",
+        "postgres://postgres:postgres@db:5432/postgres?sslmode=disable",
+      ]
+    command: ["up"]
+    links: 
+      - db
   
   api:
     build: .
