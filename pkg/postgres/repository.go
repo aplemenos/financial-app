@@ -3,9 +3,9 @@ package postgres
 import (
 	"context"
 	"database/sql"
-	"financial-app/pkg/account"
-	"financial-app/pkg/healthcheck"
-	"financial-app/pkg/transaction"
+	"financial-app/pkg/accounts"
+	"financial-app/pkg/healthchecks"
+	"financial-app/pkg/transactions"
 	"fmt"
 
 	_ "github.com/golang-migrate/migrate/v4/source/file"
@@ -23,7 +23,7 @@ type accountRepository struct {
 // NewAccountRepository returns a new instance of a postgres account repository.
 func NewAccountRepository(
 	client *sql.DB, logger *zap.SugaredLogger,
-) account.AccountRepository {
+) accounts.AccountRepository {
 	r := &accountRepository{
 		client: client,
 		logger: logger,
@@ -33,8 +33,8 @@ func NewAccountRepository(
 }
 
 func (r *accountRepository) Store(
-	ctx context.Context, acct *account.Account,
-) (*account.Account, error) {
+	ctx context.Context, acct *accounts.Account,
+) (*accounts.Account, error) {
 	acctRow := Account{
 		ID:       string(acct.ID),
 		Balance:  acct.Balance,
@@ -49,14 +49,14 @@ func (r *accountRepository) Store(
 	)
 	if err != nil {
 		// fmt.Errorf("failed to insert account: %w", err)
-		return nil, account.ErrPostingAccount(acct.ID)
+		return nil, accounts.ErrPostingAccount(acct.ID)
 	}
 
 	return acct, nil
 }
 
-func convertAccountRowToAccount(a Account) *account.Account {
-	return &account.Account{
+func convertAccountRowToAccount(a Account) *accounts.Account {
+	return &accounts.Account{
 		ID:        a.ID,
 		Balance:   a.Balance,
 		Currency:  a.Currency,
@@ -66,7 +66,7 @@ func convertAccountRowToAccount(a Account) *account.Account {
 
 func (r *accountRepository) Find(
 	ctx context.Context, id string,
-) (*account.Account, error) {
+) (*accounts.Account, error) {
 	// Fetch accountRow from the database and then convert to Account
 	var acctRow Account
 	row := r.client.QueryRowContext(
@@ -82,7 +82,7 @@ func (r *accountRepository) Find(
 		&acctRow.Currency,
 		&acctRow.CreatedAt)
 	if err != nil {
-		return nil, account.ErrFetchingAccount(id)
+		return nil, accounts.ErrFetchingAccount(id)
 
 	}
 
@@ -91,10 +91,10 @@ func (r *accountRepository) Find(
 
 func (r *accountRepository) FindByIDs(
 	ctx context.Context, ids []string,
-) (map[string]*account.Account, error) {
+) (map[string]*accounts.Account, error) {
 	// Do not process if the list is empty
 	if len(ids) == 0 {
-		return nil, account.ErrEmptyAccountList
+		return nil, accounts.ErrEmptyAccountList
 	}
 
 	// Create a map to store the fetched account rows by UUID
@@ -120,7 +120,7 @@ func (r *accountRepository) FindByIDs(
 	)
 	if err != nil {
 		r.logger.Errorf("an error occurred fetching accounts by UUIDs: %w", err)
-		return nil, account.ErrQueryingAccounts(ids)
+		return nil, accounts.ErrQueryingAccounts(ids)
 	}
 	defer rows.Close()
 
@@ -135,7 +135,7 @@ func (r *accountRepository) FindByIDs(
 		)
 		if err != nil {
 			r.logger.Errorf("an error occurred scanning account row: %w", err)
-			return nil, account.ErrScanAccounts(ids)
+			return nil, accounts.ErrScanAccounts(ids)
 		}
 		acctRows[acctRow.ID] = acctRow
 	}
@@ -143,11 +143,11 @@ func (r *accountRepository) FindByIDs(
 	// Check for any errors during iteration
 	if err = rows.Err(); err != nil {
 		r.logger.Errorf("an error occurred iterating account rows: %w", err)
-		return nil, account.ErrFetchingAccounts(ids)
+		return nil, accounts.ErrFetchingAccounts(ids)
 	}
 
 	// Convert the account rows to account
-	accounts := make(map[string]*account.Account)
+	accounts := make(map[string]*accounts.Account)
 	for _, acctRow := range acctRows {
 		accounts[acctRow.ID] = convertAccountRowToAccount(acctRow)
 	}
@@ -159,7 +159,7 @@ func (r *accountRepository) FindByIDs(
 
 func (r *accountRepository) FindAll(
 	ctx context.Context,
-) []*account.Account {
+) []*accounts.Account {
 	// Fetch all account rows from the database
 	rows, err := r.client.QueryContext(
 		ctx,
@@ -168,12 +168,12 @@ func (r *accountRepository) FindAll(
 	)
 	if err != nil {
 		r.logger.Errorf("an error occurred quering account rows:  %w", err)
-		return []*account.Account{}
+		return []*accounts.Account{}
 	}
 	defer rows.Close()
 
 	// Convert each accountRow to Account
-	accounts := make([]*account.Account, 0)
+	accts := make([]*accounts.Account, 0)
 	for rows.Next() {
 		var acctRow Account
 		err := rows.Scan(
@@ -184,18 +184,18 @@ func (r *accountRepository) FindAll(
 		)
 		if err != nil {
 			r.logger.Errorf("an error occurred scanning account row:  %w", err)
-			return []*account.Account{}
+			return []*accounts.Account{}
 		}
 		acct := convertAccountRowToAccount(acctRow)
-		accounts = append(accounts, acct)
+		accts = append(accts, acct)
 	}
 
 	if err = rows.Err(); err != nil {
 		r.logger.Errorf("an error occurred iterating transaction rows: %w", err)
-		return []*account.Account{}
+		return []*accounts.Account{}
 	}
 
-	return accounts
+	return accts
 }
 
 func (r *accountRepository) Delete(ctx context.Context, id string) error {
@@ -206,7 +206,7 @@ func (r *accountRepository) Delete(ctx context.Context, id string) error {
 	)
 	if err != nil {
 		r.logger.Errorf("failed to delete accounts from the database: %w", err)
-		return account.ErrDeletingAccount(id)
+		return accounts.ErrDeletingAccount(id)
 	}
 	return nil
 }
@@ -219,7 +219,7 @@ type transactionRepository struct {
 // NewTransactionRepository returns a new instance of a postgres transaction repository.
 func NewTransactionRepository(
 	client *sql.DB, logger *zap.SugaredLogger,
-) transaction.TransactionRepository {
+) transactions.TransactionRepository {
 	r := &transactionRepository{
 		client: client,
 		logger: logger,
@@ -228,8 +228,8 @@ func NewTransactionRepository(
 	return r
 }
 
-func convertTransactionRowToTransaction(t Transaction) *transaction.Transaction {
-	return &transaction.Transaction{
+func convertTransactionRowToTransaction(t Transaction) *transactions.Transaction {
+	return &transactions.Transaction{
 		ID:              t.ID,
 		SourceAccountID: t.SourceAccountID,
 		TargetAccountID: t.TargetAccountID,
@@ -240,7 +240,7 @@ func convertTransactionRowToTransaction(t Transaction) *transaction.Transaction 
 
 func (r *transactionRepository) Find(
 	ctx context.Context, id string,
-) (*transaction.Transaction, error) {
+) (*transactions.Transaction, error) {
 	// Fetch transactionRow from the database and then convert to Transaction
 	var txnRow Transaction
 
@@ -258,7 +258,7 @@ func (r *transactionRepository) Find(
 		&txnRow.Amount,
 		&txnRow.Currency)
 	if err != nil {
-		return nil, transaction.ErrFetchingTransaction(id)
+		return nil, transactions.ErrFetchingTransaction(id)
 
 	}
 
@@ -267,7 +267,7 @@ func (r *transactionRepository) Find(
 
 func (r *transactionRepository) FindAll(
 	ctx context.Context,
-) []*transaction.Transaction {
+) []*transactions.Transaction {
 	// Fetch all transaction rows from the database
 	rows, err := r.client.QueryContext(
 		ctx,
@@ -276,12 +276,12 @@ func (r *transactionRepository) FindAll(
 	)
 	if err != nil {
 		r.logger.Errorf("an error occurred quering transaction rows:  %w", err)
-		return []*transaction.Transaction{}
+		return []*transactions.Transaction{}
 	}
 	defer rows.Close()
 
 	// Convert each transactionRow to Transaction
-	transactions := make([]*transaction.Transaction, 0)
+	transacts := make([]*transactions.Transaction, 0)
 	for rows.Next() {
 		var txnRow Transaction
 		err := rows.Scan(
@@ -293,18 +293,18 @@ func (r *transactionRepository) FindAll(
 		)
 		if err != nil {
 			r.logger.Errorf("an error occurred scanning transaction row:  %w", err)
-			return []*transaction.Transaction{}
+			return []*transactions.Transaction{}
 		}
 		txn := convertTransactionRowToTransaction(txnRow)
-		transactions = append(transactions, txn)
+		transacts = append(transacts, txn)
 	}
 
 	if err = rows.Err(); err != nil {
 		r.logger.Errorf("an error occurred iterating transaction rows: %w", err)
-		return []*transaction.Transaction{}
+		return []*transactions.Transaction{}
 	}
 
-	return transactions
+	return transacts
 }
 
 func (r *transactionRepository) Delete(
@@ -317,14 +317,17 @@ func (r *transactionRepository) Delete(
 	)
 	if err != nil {
 		r.logger.Errorf("failed to delete transaction from the database: %w", err)
-		return transaction.ErrDeletingTransaction(id)
+		return transactions.ErrDeletingTransaction(id)
 	}
 	return nil
 }
 
 func (r *transactionRepository) Transfer(
-	ctx context.Context, txn *transaction.Transaction, sacc *account.Account, tacc *account.Account,
-) (*transaction.Transaction, error) {
+	ctx context.Context,
+	txn *transactions.Transaction,
+	sacc *accounts.Account,
+	tacc *accounts.Account,
+) (*transactions.Transaction, error) {
 	postRow := Transaction{
 		ID:              txn.ID,
 		SourceAccountID: txn.SourceAccountID,
@@ -365,14 +368,14 @@ func (r *transactionRepository) Transfer(
 		_, err := tx.ExecContext(ctx, query, sacc.Balance, sacc.ID)
 		if err != nil {
 			r.logger.Errorf("failed to update the source account: %w", err)
-			return transaction.ErrUpdateAccount(sacc.ID)
+			return transactions.ErrUpdateAccount(sacc.ID)
 		}
 
 		// Update the target account
 		_, err = tx.ExecContext(ctx, query, tacc.Balance, tacc.ID)
 		if err != nil {
 			r.logger.Errorf("failed to update the target account: %w", err)
-			return transaction.ErrUpdateAccount(tacc.ID)
+			return transactions.ErrUpdateAccount(tacc.ID)
 		}
 
 		_, err = tx.ExecContext(
@@ -385,7 +388,7 @@ func (r *transactionRepository) Transfer(
 		)
 		if err != nil {
 			r.logger.Errorf("failed to insert transaction: %w", err)
-			return transaction.ErrPostingTransaction(txn.ID)
+			return transactions.ErrPostingTransaction(txn.ID)
 		}
 
 		r.logger.Info("transfer completed")
@@ -430,7 +433,7 @@ type healthcheckRepository struct {
 // NewHealthcheckRepository returns a new instance of a postgres healthcheck repository.
 func NewHealthcheckRepository(
 	client *sql.DB, logger *zap.SugaredLogger,
-) healthcheck.HealthcheckRepository {
+) healthchecks.HealthcheckRepository {
 	r := &healthcheckRepository{
 		client: client,
 		logger: logger,
