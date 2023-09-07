@@ -48,7 +48,7 @@ func (r *accountRepository) Store(
 		ctx, query, acctRow.ID, acctRow.Balance, acctRow.Currency,
 	)
 	if err != nil {
-		// fmt.Errorf("failed to insert account: %w", err)
+		r.logger.Errorf("failed to insert account: %w", err)
 		return nil, accounts.ErrPostingAccount(acct.ID)
 	}
 

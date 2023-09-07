@@ -12,6 +12,10 @@ tasks:
   migrate-up:
    cmds:
     - docker compose -f docker-compose.yml --profile tools run --rm migrate up
+
+  migrate-down:
+   cmds:
+   - docker compose -f docker-compose.yml --profile tools run --rm migrate down
   
   test:
     cmds:
