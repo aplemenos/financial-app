@@ -75,7 +75,7 @@ func TestAccountHandler_LoadAll(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.Name, func(t *testing.T) {
 			// Set up expected behavior for the mock service method
-			mockService.On("Accounts", mock.Anything).Return(tc.ExpectedResponse)
+			mockService.On("LoadAll", mock.Anything).Return(tc.ExpectedResponse)
 
 			// Create a new HTTP request
 			req, _ := http.NewRequest("GET", "/accounts", nil)
@@ -210,7 +210,7 @@ func TestAccountHandler_Load(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.Name, func(t *testing.T) {
 			// Set up expected behavior for the mock service method
-			mockService.On("LoadAccount", mock.Anything, tc.AccountID).
+			mockService.On("Load", mock.Anything, tc.AccountID).
 				Return(Account{}, tc.ExpectedError)
 
 			// Create a new HTTP request
