@@ -80,7 +80,7 @@ func TestService_LoadAccount(t *testing.T) {
 
 	service := NewService(mockAccountRepository)
 
-	loadedAccount, err := service.LoadAccount(context.Background(), accountID)
+	loadedAccount, err := service.Load(context.Background(), accountID)
 
 	assert.NoError(t, err, "Error should be nil")
 	assert.Equal(t, expectedAccount, loadedAccount, "Loaded account should match the mock account")
@@ -154,7 +154,7 @@ func TestService_Accounts(t *testing.T) {
 
 	service := NewService(mockAccountRepository)
 
-	accounts := service.Accounts(context.Background())
+	accounts := service.LoadAll(context.Background())
 
 	assert.Len(t, accounts, 2, "Number of returned accounts should be 2")
 	assert.Contains(t, accounts, expectedAccount1, "Account 1 should be present")

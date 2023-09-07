@@ -20,12 +20,12 @@ type MockService struct {
 	mock.Mock
 }
 
-func (m *MockService) Accounts(ctx context.Context) []Account {
+func (m *MockService) LoadAll(ctx context.Context) []Account {
 	args := m.Called(ctx)
 	return args.Get(0).([]Account)
 }
 
-func (m *MockService) LoadAccount(ctx context.Context, id string) (Account, error) {
+func (m *MockService) Load(ctx context.Context, id string) (Account, error) {
 	args := m.Called(ctx, id)
 	return args.Get(0).(Account), args.Error(1)
 }

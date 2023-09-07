@@ -23,20 +23,20 @@ type Account struct {
 
 // Service is the interface that provides account methods
 type Service interface {
-	// LoadAccount returns a read model of an account
-	LoadAccount(ctx context.Context, id string) (Account, error)
+	// Load returns a read model of an account
+	Load(ctx context.Context, id string) (Account, error)
 
 	// Register registers a new account
 	Register(ctx context.Context, acct Account) (Account, error)
 
-	// Accounts returns a list of accounts have been registered
-	Accounts(ctx context.Context) []Account
+	// LoadAll returns a list of accounts have been registered
+	LoadAll(ctx context.Context) []Account
 
 	// Clean deletes an account
 	Clean(ctx context.Context, id string) error
 }
 
-func (s *service) LoadAccount(
+func (s *service) Load(
 	ctx context.Context, id string,
 ) (Account, error) {
 	// Calls the repository passing in the context
@@ -58,7 +58,7 @@ func (s *service) Register(
 	return *account, nil
 }
 
-func (s *service) Accounts(ctx context.Context) []Account {
+func (s *service) LoadAll(ctx context.Context) []Account {
 	var accounts []Account
 	for _, a := range s.accounts.FindAll(ctx) {
 		accounts = append(accounts, *a)

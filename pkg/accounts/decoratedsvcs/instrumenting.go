@@ -25,7 +25,7 @@ func NewInstrumentingService(
 	}
 }
 
-func (s *instrumentingService) LoadAccount(
+func (s *instrumentingService) Load(
 	ctx context.Context, id string,
 ) (account accounts.Account, err error) {
 	defer func(begin time.Time) {
@@ -33,7 +33,7 @@ func (s *instrumentingService) LoadAccount(
 		s.requestLatency.With("method", "load").Observe(time.Since(begin).Seconds())
 	}(time.Now())
 
-	return s.next.LoadAccount(ctx, id)
+	return s.next.Load(ctx, id)
 }
 
 func (s *instrumentingService) Register(
@@ -47,13 +47,13 @@ func (s *instrumentingService) Register(
 	return s.next.Register(ctx, acct)
 }
 
-func (s *instrumentingService) Accounts(ctx context.Context) []accounts.Account {
+func (s *instrumentingService) LoadAll(ctx context.Context) []accounts.Account {
 	defer func(begin time.Time) {
 		s.requestCount.With("method", "accounts").Add(1)
 		s.requestLatency.With("method", "accounts").Observe(time.Since(begin).Seconds())
 	}(time.Now())
 
-	return s.next.Accounts(ctx)
+	return s.next.LoadAll(ctx)
 }
 
 func (s *instrumentingService) Clean(

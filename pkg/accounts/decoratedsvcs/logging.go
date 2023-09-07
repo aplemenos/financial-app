@@ -18,7 +18,7 @@ func NewLoggingService(logger *log.SugaredLogger, s accounts.Service) accounts.S
 	return &loggingService{logger, s}
 }
 
-func (s *loggingService) LoadAccount(
+func (s *loggingService) Load(
 	ctx context.Context, id string,
 ) (account accounts.Account, err error) {
 	defer func(begin time.Time) {
@@ -29,7 +29,7 @@ func (s *loggingService) LoadAccount(
 			log.Error(err),
 		)
 	}(time.Now())
-	return s.next.LoadAccount(ctx, id)
+	return s.next.Load(ctx, id)
 }
 
 func (s *loggingService) Register(
@@ -49,14 +49,14 @@ func (s *loggingService) Register(
 	return s.next.Register(ctx, acct)
 }
 
-func (s *loggingService) Accounts(ctx context.Context) []accounts.Account {
+func (s *loggingService) LoadAll(ctx context.Context) []accounts.Account {
 	defer func(begin time.Time) {
 		s.logger.Infow(
 			"accounts",
 			log.Duration("took", time.Since(begin)),
 		)
 	}(time.Now())
-	return s.next.Accounts(ctx)
+	return s.next.LoadAll(ctx)
 }
 
 func (s *loggingService) Clean(

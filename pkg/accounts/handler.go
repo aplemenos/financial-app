@@ -39,7 +39,7 @@ func (h *AccountHandler) load(context *gin.Context) {
 		return
 	}
 
-	acct, err := h.Service.LoadAccount(context, id)
+	acct, err := h.Service.Load(context, id)
 	if err != nil {
 		h.Logger.Error(err)
 
@@ -54,7 +54,7 @@ func (h *AccountHandler) load(context *gin.Context) {
 
 // loadAll retrieves all the registered accounts
 func (h *AccountHandler) loadAll(context *gin.Context) {
-	accounts := h.Service.Accounts(context)
+	accounts := h.Service.LoadAll(context)
 
 	context.JSON(http.StatusOK, accounts)
 }
